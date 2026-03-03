@@ -225,7 +225,9 @@ async function verifyGHLCustomer(email, isSignup = false) {
         return {
           isValidCustomer: true,
           isNewCustomer: false,
-          needsSubscription: false
+          needsSubscription: false,
+          tier: 'premium', // Demo users get premium access
+          ghlData: { tier: 'premium', tags: ['demo', 'premium'] }
         };
       }
       
@@ -233,36 +235,57 @@ async function verifyGHLCustomer(email, isSignup = false) {
         return {
           isValidCustomer: true,
           isNewCustomer: true,
-          needsSubscription: true
+          needsSubscription: true,
+          tier: 'trial',
+          ghlData: null
         };
       }
     }
     
-    // Method 1: Check via API endpoint
+    // Method 1: Check via GoHighLevel API endpoint
     if (!IS_DEMO_MODE) {
       try {
-        const response = await fetch('/api/verify-customer', {
+        const response = await fetch('/api/ghl-integration', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email, isSignup })
+          body: JSON.stringify({ 
+            action: 'validate_tier',
+            email: email
+          })
         });
         
         if (response.ok) {
-          const data = await response.json();
-          console.log('API verification result:', data);
-          return {
-            isValidCustomer: data.isValidCustomer,
-            isNewCustomer: data.isNewCustomer || false,
-            needsSubscription: data.needsSubscription || false,
-            customerData: data.customerData
-          };
+          const ghlData = await response.json();
+          console.log('GHL verification result:', ghlData);
+          
+          if (ghlData.success) {
+            const isPremium = ghlData.tier === 'premium';
+            const isTrial = ghlData.tier === 'trial';
+            
+            return {
+              isValidCustomer: true,
+              isNewCustomer: false,
+              needsSubscription: !isPremium && !isTrial,
+              tier: ghlData.tier,
+              ghlData: ghlData
+            };
+          } else {
+            // User not found in GHL, treat as new customer
+            return {
+              isValidCustomer: false,
+              isNewCustomer: true,
+              needsSubscription: true,
+              tier: 'trial',
+              ghlData: null
+            };
+          }
         } else {
-          console.log('API response not ok:', response.status, 'Falling back to demo mode');
+          console.log('GHL API response not ok:', response.status, 'Falling back to demo mode');
         }
       } catch (apiError) {
-        console.log('API verification failed, using fallback:', apiError.message);
+        console.log('GHL verification failed, using fallback:', apiError.message);
       }
     }
     

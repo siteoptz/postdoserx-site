@@ -1416,7 +1416,7 @@ function clearSignupMessage() {
 }
 
 // Handle signup form submission
-document.getElementById('quick-signup-form').addEventListener('submit', function(e) {
+document.getElementById('quick-signup-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   
   const submitBtn = document.getElementById('signup-submit');
@@ -1430,31 +1430,76 @@ document.getElementById('quick-signup-form').addEventListener('submit', function
   }
   
   // Show loading state
-  submitBtn.textContent = 'Preparing checkout...';
+  submitBtn.textContent = 'Creating account...';
   submitBtn.disabled = true;
   clearSignupMessage();
   
-  // Store user info for post-purchase account creation
-  const userData = {
-    email: email,
-    name: name || '',
-    plan: selectedPlan,
-    priceId: selectedPriceId,
-    timestamp: Date.now()
-  };
-  
-  localStorage.setItem('postdoserx_signup_data', JSON.stringify(userData));
-  
-  // Show success message
-  showSignupMessage(`Great! Redirecting to secure checkout for ${selectedPlan}...`, 'success');
-  
-  setTimeout(() => {
-    // Close modal and proceed to Stripe checkout
-    closeSignupModal();
+  try {
+    // Determine tier based on selected plan
+    const tier = selectedPlan.toLowerCase().includes('trial') ? 'trial' : 
+                selectedPlan.toLowerCase().includes('premium') ? 'premium' : 'trial';
     
-    // Use the existing Stripe checkout with user email pre-filled
-    initiateStripeCheckout(selectedPriceId, email, name);
-  }, 1500);
+    // Create contact in GoHighLevel
+    showSignupMessage('Setting up your account...', 'info');
+    
+    const ghlResponse = await fetch('/api/ghl-integration', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'create_contact',
+        email: email,
+        name: name || '',
+        tier: tier,
+        phone: '' // Optional phone field
+      })
+    });
+    
+    const ghlData = await ghlResponse.json();
+    
+    if (!ghlData.success) {
+      console.warn('GHL contact creation failed, proceeding with fallback:', ghlData.error);
+    }
+    
+    // Store user info for post-purchase account creation
+    const userData = {
+      email: email,
+      name: name || '',
+      plan: selectedPlan,
+      priceId: selectedPriceId,
+      tier: tier,
+      timestamp: Date.now(),
+      ghlContactId: ghlData.contact?.id || null
+    };
+    
+    localStorage.setItem('postdoserx_signup_data', JSON.stringify(userData));
+    
+    // Show success message
+    showSignupMessage(`Account created! Redirecting to secure checkout for ${selectedPlan}...`, 'success');
+    
+    setTimeout(() => {
+      // Close modal and proceed to Stripe checkout
+      closeSignupModal();
+      
+      // Use the existing Stripe checkout with user email pre-filled
+      initiateStripeCheckout(selectedPriceId, email, name, tier);
+    }, 1500);
+    
+  } catch (error) {
+    console.error('Signup process error:', error);
+    showSignupMessage('Account creation failed. Proceeding to checkout...', 'error');
+    
+    // Fallback - still proceed to checkout even if GHL fails
+    setTimeout(() => {
+      closeSignupModal();
+      initiateStripeCheckout(selectedPriceId, email, name, 'trial');
+    }, 2000);
+  }
+  
+  // Reset button state on error
+  submitBtn.textContent = originalText;
+  submitBtn.disabled = false;
 });
 
 function initiateStripeCheckout(priceId, email, name) {
