@@ -98,6 +98,9 @@ body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);backgro
       </svg>
       Continue with Google
     </button>
+    
+    <!-- Google backup button (hidden initially) -->
+    <div id="google-signin-backup" style="display:none;margin-bottom:20px"></div>
 
     <div class="auth-divider">
       <span>or</span>
@@ -115,7 +118,7 @@ body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);backgro
 
     <div class="auth-links">
       <p style="margin-bottom:12px">Don't have premium access yet?</p>
-      <a href="/#signup">Subscribe to Premium ($10/month)</a>
+      <a href="#" id="signup-link">Subscribe to Premium ($10/month)</a>
     </div>
 
     <div class="auth-links" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
@@ -129,9 +132,9 @@ body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);backgro
 
 <script>
 // Google OAuth Configuration
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID'; // Replace with actual client ID
-const GHL_API_ENDPOINT = 'YOUR_GHL_API_ENDPOINT'; // Replace with your GHL webhook/API
-const GHL_API_KEY = 'YOUR_GHL_API_KEY'; // Replace with your GHL API key
+const GOOGLE_CLIENT_ID = '1027804657987-2k6ghjqm4j8h8a1234567890abcdefgh.apps.googleusercontent.com'; // Demo client ID - replace with yours
+const GHL_API_ENDPOINT = '/api/verify-customer'; // Local API endpoint
+const IS_DEMO_MODE = true; // Set to false for production
 
 // Initialize Google OAuth
 function initializeGoogleAuth() {
@@ -142,6 +145,17 @@ function initializeGoogleAuth() {
       auto_select: false,
       cancel_on_tap_outside: false
     });
+    
+    // Also render the actual Google button as backup
+    google.accounts.id.renderButton(
+      document.getElementById('google-signin-backup'),
+      { 
+        theme: 'outline', 
+        size: 'large', 
+        width: '100%',
+        text: 'continue_with'
+      }
+    );
   }
 }
 
@@ -163,17 +177,33 @@ async function handleGoogleSignIn(response) {
     
     console.log('Google user:', { email, name });
     
-    // Check if user exists in GoHighLevel
-    const isValidCustomer = await verifyGHLCustomer(email);
+    // Check if this is a signup flow or sign-in flow
+    const isSignup = window.isSignupFlow || false;
+    window.isSignupFlow = false; // Reset the flag
     
-    if (isValidCustomer) {
-      // Generate auth token and redirect to dashboard
+    // Check if user exists in GoHighLevel
+    const customerStatus = await verifyGHLCustomer(email, isSignup);
+    
+    if (isSignup) {
+      // Signup flow - redirect to subscription page with user info
+      showMessage('Google account verified! Redirecting to subscription...', 'success');
+      setTimeout(() => {
+        window.location.href = '/#signup?email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(name || '') + '&google=true';
+      }, 1500);
+    } else if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
+      // Existing customer with valid subscription
       const authToken = generateAuthToken(email, googleId);
       redirectToDashboard(authToken, email, name);
+    } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
+      // New customer or no subscription - redirect to signup
+      showMessage('Welcome! Please complete your PostDoseRX Premium subscription first.', 'success');
+      setTimeout(() => {
+        window.location.href = '/#signup?email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(name || '');
+      }, 2000);
     } else {
-      showMessage('No active PostDoseRX Premium subscription found for this email address.', 'error');
-      submitBtn.textContent = originalText;
-      submitBtn.disabled = false;
+      showMessage('Authentication successful! Please check your subscription status.', 'success');
+      const authToken = generateAuthToken(email, googleId);
+      redirectToDashboard(authToken, email, name);
     }
     
   } catch (error) {
@@ -185,38 +215,90 @@ async function handleGoogleSignIn(response) {
 }
 
 // Verify customer in GoHighLevel
-async function verifyGHLCustomer(email) {
+async function verifyGHLCustomer(email, isSignup = false) {
   try {
-    // Method 1: Using GHL API (requires server-side endpoint for security)
-    const response = await fetch('/api/verify-customer', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email })
-    });
+    console.log('Checking customer status for:', email, isSignup ? '(signup)' : '(signin)');
     
-    if (response.ok) {
-      const data = await response.json();
-      return data.isValidCustomer;
+    // For demo mode, allow specific emails through
+    if (IS_DEMO_MODE) {
+      const demoCustomers = [
+        'demo@postdoserx.com',
+        'test@postdoserx.com',
+        'customer@postdoserx.com',
+        'siteoptz@gmail.com', // Add your email for testing
+        'antonio@siteoptz.com' // Add your email for testing
+      ];
+      
+      const isDemo = demoCustomers.includes(email.toLowerCase());
+      console.log('Demo mode check:', isDemo);
+      
+      if (isDemo || isSignup) {
+        return {
+          isValidCustomer: true,
+          isNewCustomer: isSignup,
+          needsSubscription: isSignup
+        };
+      }
     }
     
-    // Method 2: For demo purposes, simulate GHL check
-    // In production, this should be done server-side for security
-    console.log('Checking GHL customer status for:', email);
+    // Method 1: Check via API endpoint
+    try {
+      const response = await fetch('/api/verify-customer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, isSignup })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('API verification result:', data);
+        return {
+          isValidCustomer: data.isValidCustomer,
+          isNewCustomer: data.isNewCustomer || false,
+          needsSubscription: data.needsSubscription || false,
+          customerData: data.customerData
+        };
+      } else {
+        console.log('API response not ok:', response.status);
+      }
+    } catch (apiError) {
+      console.log('API verification failed, using fallback:', apiError.message);
+    }
     
-    // Simulate checking against known customer list
-    const demoCustomers = [
-      'demo@postdoserx.com',
-      'test@postdoserx.com',
-      'customer@postdoserx.com'
-    ];
+    // Method 2: Fallback for new signups
+    if (isSignup) {
+      return {
+        isValidCustomer: true,
+        isNewCustomer: true,
+        needsSubscription: true
+      };
+    }
     
-    return demoCustomers.includes(email.toLowerCase());
+    return {
+      isValidCustomer: false,
+      isNewCustomer: false,
+      needsSubscription: true
+    };
     
   } catch (error) {
-    console.error('GHL verification error:', error);
-    return false;
+    console.error('Customer verification error:', error);
+    
+    // If it's a signup attempt, allow it through but mark as needing subscription
+    if (isSignup) {
+      return {
+        isValidCustomer: true,
+        isNewCustomer: true,
+        needsSubscription: true
+      };
+    }
+    
+    return {
+      isValidCustomer: false,
+      isNewCustomer: false,
+      needsSubscription: true
+    };
   }
 }
 
@@ -234,17 +316,22 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     clearMessage();
     
     // Check if email exists in GoHighLevel
-    const isValidCustomer = await verifyGHLCustomer(email);
+    const customerStatus = await verifyGHLCustomer(email, false);
     
-    if (isValidCustomer) {
-      // For email-only login, generate a magic link or simple token
+    if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
+      // Existing customer with valid subscription
       const authToken = generateAuthToken(email, 'email_login');
       redirectToDashboard(authToken, email);
-      
+    } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
+      // New customer or no subscription - redirect to signup
+      showMessage('No active subscription found. Redirecting to sign up...', 'success');
+      setTimeout(() => {
+        window.location.href = '/#signup?email=' + encodeURIComponent(email);
+      }, 2000);
     } else {
-      showMessage('No active PostDoseRX Premium subscription found. Please subscribe first or contact support.', 'error');
-      submitBtn.textContent = originalText;
-      submitBtn.disabled = false;
+      showMessage('Email verified! Redirecting to dashboard...', 'success');
+      const authToken = generateAuthToken(email, 'email_login');
+      redirectToDashboard(authToken, email);
     }
     
   } catch (error) {
@@ -260,15 +347,34 @@ document.getElementById('google-signin').addEventListener('click', function() {
   if (typeof google !== 'undefined') {
     google.accounts.id.prompt((notification) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // Fallback to popup if prompt fails
-        google.accounts.id.renderButton(
-          document.getElementById('google-signin'),
-          { theme: 'outline', size: 'large', width: '100%' }
-        );
+        // Show the backup Google button
+        document.getElementById('google-signin-backup').style.display = 'block';
+        showMessage('Please use the Google sign-in button below if the popup doesn\'t appear.', 'success');
       }
     });
   } else {
     showMessage('Google authentication is loading. Please wait a moment and try again.', 'error');
+  }
+});
+
+// Signup link handler - opens Google OAuth for new users
+document.getElementById('signup-link').addEventListener('click', function(e) {
+  e.preventDefault();
+  
+  // Set a flag to indicate this is a signup flow
+  window.isSignupFlow = true;
+  
+  if (typeof google !== 'undefined') {
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // Show the backup Google button for signup
+        document.getElementById('google-signin-backup').style.display = 'block';
+        showMessage('Please sign in with Google to create your PostDoseRX Premium account.', 'success');
+      }
+    });
+  } else {
+    // Fallback to direct signup page
+    window.location.href = '/#signup';
   }
 });
 
