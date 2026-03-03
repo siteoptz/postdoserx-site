@@ -1132,7 +1132,6 @@ function startStripeCheckout(priceId, buttonElement) {
     successUrl: window.location.origin + '/success.html',
     cancelUrl: window.location.origin,
     billingAddressCollection: 'required',
-    allowPromotionCodes: true,
   }).then(function (result) {
     console.log('Stripe redirectToCheckout result:', result);
     clearTimeout(timeoutId);
