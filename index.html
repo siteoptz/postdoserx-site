@@ -1091,33 +1091,19 @@ function handleContactSubmit(e){
 }
 
 function startStripeCheckout(priceId) {
-  // For development/demo - you can replace this with actual Stripe checkout
-  // This creates a basic checkout URL that can be replaced with actual Stripe integration
-  
-  // Option 1: Direct Stripe Checkout URL (requires your actual Stripe publishable key)
-  // const checkoutUrl = `https://checkout.stripe.com/pay/cs_test_${priceId}`;
-  // window.open(checkoutUrl, '_blank');
-  
-  // Option 2: Placeholder for actual Stripe integration
+  // Log to console for development
   console.log('Starting checkout for price ID:', priceId);
-  alert('Stripe checkout would start here with price ID: ' + priceId + '\n\nTo implement:\n1. Add Stripe.js to the page\n2. Create checkout session\n3. Redirect to Stripe checkout');
   
-  // Option 3: Actual Stripe implementation would look like:
-  /*
-  // Load Stripe.js first: <script src="https://js.stripe.com/v3/"></script>
-  const stripe = Stripe('pk_test_your_publishable_key');
+  // Clean placeholder message
+  const planName = priceId.includes('Trial') || priceId === 'price_1SrSZbAYjb6yVLnRHNOJVKy2' ? 'Trial Plan' : 'Premium Plan';
   
-  fetch('/create-checkout-session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ priceId: priceId })
-  })
-  .then(response => response.json())
-  .then(session => {
-    return stripe.redirectToCheckout({ sessionId: session.id });
-  })
-  .catch(error => console.error('Error:', error));
-  */
+  alert(`🚀 ${planName} Checkout\n\nPrice ID: ${priceId}\n\nThis will redirect to Stripe checkout once backend is connected.`);
+  
+  // TODO: Replace with actual Stripe implementation
+  // 1. Add Stripe.js: <script src="https://js.stripe.com/v3/"></script>
+  // 2. Initialize: const stripe = Stripe('your_publishable_key');
+  // 3. Create checkout session via your backend
+  // 4. Redirect to Stripe checkout
 }
 </script>
 </body>
