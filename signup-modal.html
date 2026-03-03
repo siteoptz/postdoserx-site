@@ -1,0 +1,359 @@
+<!-- Quick Signup Modal for PreCheckout Flow -->
+<div id="signup-modal" class="modal" style="display:none;">
+  <div class="modal-overlay" onclick="closeSignupModal()"></div>
+  <div class="modal-content signup-modal-content">
+    <div class="modal-header">
+      <h2 class="signup-title">Almost there!</h2>
+      <p class="signup-subtitle">Just need your email to get started with <span id="selected-plan">Premium</span></p>
+      <button class="modal-close" onclick="closeSignupModal()">×</button>
+    </div>
+
+    <div id="signup-message-container"></div>
+
+    <form id="quick-signup-form" class="signup-form">
+      <div class="form-group">
+        <label for="signup-email" class="form-label">Email Address</label>
+        <input type="email" id="signup-email" name="email" class="form-input" placeholder="your.email@example.com" required>
+      </div>
+
+      <div class="form-group">
+        <label for="signup-name" class="form-label">Name (Optional)</label>
+        <input type="text" id="signup-name" name="name" class="form-input" placeholder="Your name">
+      </div>
+
+      <button type="submit" class="form-submit" id="signup-submit">
+        Continue to Secure Checkout
+      </button>
+
+      <p class="signup-disclaimer">
+        After payment, we'll send setup instructions to your email. No account creation needed yet!
+      </p>
+    </form>
+
+    <div class="oauth-section">
+      <div class="auth-divider">
+        <span>or</span>
+      </div>
+      
+      <div class="oauth-notice" style="background:var(--teal-light);border:1px solid var(--teal);border-radius:8px;padding:12px;text-align:center;font-size:12px;color:var(--teal-dark)">
+        <strong>🔄 Google Sign-In:</strong> Available after initial setup is complete
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Signup Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(27, 42, 74, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.signup-modal-content {
+  position: relative;
+  background: var(--white);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 480px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(27, 42, 74, 0.15);
+}
+
+.modal-header {
+  text-align: center;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.signup-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 28px;
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+
+.signup-subtitle {
+  color: var(--text-sec);
+  font-size: 14px;
+}
+
+.modal-close {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--slate);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.modal-close:hover {
+  background: var(--sand);
+}
+
+.signup-form .form-group {
+  margin-bottom: 20px;
+}
+
+.signup-form .form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  margin-bottom: 6px;
+}
+
+.signup-form .form-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--white);
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.signup-form .form-input:focus {
+  outline: none;
+  border-color: var(--magenta);
+  box-shadow: 0 0 0 3px rgba(198, 22, 141, .1);
+}
+
+.signup-form .form-submit {
+  width: 100%;
+  background: var(--magenta);
+  color: var(--white);
+  border: none;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+  margin-bottom: 12px;
+}
+
+.signup-form .form-submit:hover {
+  background: var(--magenta-dark);
+}
+
+.signup-form .form-submit:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.signup-disclaimer {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.oauth-section {
+  margin-top: 20px;
+}
+
+.auth-divider {
+  margin: 20px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  position: relative;
+}
+
+.auth-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-divider span {
+  background: var(--white);
+  padding: 0 16px;
+}
+
+/* Message styles */
+.signup-message {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.signup-message.error {
+  background: rgba(220, 53, 69, .1);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, .2);
+}
+
+.signup-message.success {
+  background: rgba(40, 167, 69, .1);
+  color: #28a745;
+  border: 1px solid rgba(40, 167, 69, .2);
+}
+
+@media (max-width: 480px) {
+  .signup-modal-content {
+    padding: 24px;
+    width: 95%;
+  }
+  
+  .signup-title {
+    font-size: 24px;
+  }
+}
+</style>
+
+<script>
+let selectedPlan = null;
+let selectedPriceId = null;
+
+function openSignupModal(planName, priceId) {
+  selectedPlan = planName;
+  selectedPriceId = priceId;
+  
+  document.getElementById('selected-plan').textContent = planName;
+  document.getElementById('signup-modal').style.display = 'flex';
+  document.getElementById('signup-email').focus();
+  
+  // Pre-fill email if available from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const email = urlParams.get('email');
+  const name = urlParams.get('name');
+  
+  if (email) {
+    document.getElementById('signup-email').value = email;
+  }
+  if (name) {
+    document.getElementById('signup-name').value = name;
+  }
+}
+
+function closeSignupModal() {
+  document.getElementById('signup-modal').style.display = 'none';
+  clearSignupMessage();
+}
+
+function showSignupMessage(text, type = 'error') {
+  const container = document.getElementById('signup-message-container');
+  container.innerHTML = `<div class="signup-message ${type}">${text}</div>`;
+}
+
+function clearSignupMessage() {
+  document.getElementById('signup-message-container').innerHTML = '';
+}
+
+// Handle signup form submission
+document.getElementById('quick-signup-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const submitBtn = document.getElementById('signup-submit');
+  const originalText = submitBtn.textContent;
+  const email = document.getElementById('signup-email').value;
+  const name = document.getElementById('signup-name').value;
+  
+  if (!email) {
+    showSignupMessage('Please enter your email address.', 'error');
+    return;
+  }
+  
+  // Show loading state
+  submitBtn.textContent = 'Preparing checkout...';
+  submitBtn.disabled = true;
+  clearSignupMessage();
+  
+  // Store user info for post-purchase account creation
+  const userData = {
+    email: email,
+    name: name || '',
+    plan: selectedPlan,
+    priceId: selectedPriceId,
+    timestamp: Date.now()
+  };
+  
+  localStorage.setItem('postdoserx_signup_data', JSON.stringify(userData));
+  
+  // Show success message
+  showSignupMessage(`Great! Redirecting to secure checkout for ${selectedPlan}...`, 'success');
+  
+  setTimeout(() => {
+    // Close modal and proceed to Stripe checkout
+    closeSignupModal();
+    
+    // Use the existing Stripe checkout with user email pre-filled
+    initiateStripeCheckout(selectedPriceId, email, name);
+  }, 1500);
+});
+
+function initiateStripeCheckout(priceId, email, name) {
+  console.log('Initiating Stripe checkout with:', { priceId, email, name });
+  
+  // Use the existing Stripe payment links with customer email
+  let paymentLinkUrl;
+  
+  if (priceId === 'price_1SrSZbAYjb6yVLnRHNOJVKy2') {
+    paymentLinkUrl = 'https://buy.stripe.com/aFa9AS2Lk10NdQF8LF63K00';
+  } else if (priceId === 'price_1SrSYIAYjb6yVLnRYPJTOU5A') {
+    paymentLinkUrl = 'https://buy.stripe.com/3cI5kCeu224R3c11jd63K01';
+  } else {
+    console.error('Unknown price ID:', priceId);
+    return;
+  }
+  
+  // Add customer email as URL parameter if Stripe supports it
+  if (email) {
+    paymentLinkUrl += `?prefilled_email=${encodeURIComponent(email)}`;
+  }
+  
+  window.location.href = paymentLinkUrl;
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('signup-modal');
+  if (e.target === modal) {
+    closeSignupModal();
+  }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeSignupModal();
+  }
+});
+</script>
