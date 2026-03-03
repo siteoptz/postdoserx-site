@@ -1095,67 +1095,40 @@ function handleContactSubmit(e){
 const stripe = Stripe('pk_live_51S7h5gAYjb6yVLnRYf9kpImpwogG8YN2us6dLdYcmREKy0wa1ovjLNyyzzttavOl178pEWYCSXFwkV6ZmUdYGViB00j8P4PRJ0');
 
 function startStripeCheckout(priceId, buttonElement) {
-  console.log('Starting Stripe checkout for price:', priceId);
+  console.log('Redirecting to Stripe Payment Link for price:', priceId);
   
-  // Show loading state
+  // Show loading state briefly
   const originalText = buttonElement.textContent;
-  buttonElement.textContent = 'Loading...';
+  buttonElement.textContent = 'Redirecting...';
   buttonElement.disabled = true;
   
-  // Try the most basic Stripe checkout approach
+  // Determine the correct payment link based on price ID
+  let paymentLinkUrl;
+  
+  if (priceId === 'price_1SrSZbAYjb6yVLnRHNOJVKy2') {
+    // Trial plan payment link
+    paymentLinkUrl = 'https://buy.stripe.com/aFa9AS2Lk10NdQF8LF63K00';
+    console.log('Opening Trial payment link');
+  } else if (priceId === 'price_1SrSYIAYjb6yVLnRYPJTOU5A') {
+    // Premium plan payment link
+    paymentLinkUrl = 'https://buy.stripe.com/3cI5kCeu224R3c11jd63K01';
+    console.log('Opening Premium payment link');
+  } else {
+    console.error('Unknown price ID:', priceId);
+    alert('Error: Unknown subscription plan. Please try again.');
+    buttonElement.textContent = originalText;
+    buttonElement.disabled = false;
+    return;
+  }
+  
   try {
-    // Option 1: Try direct price-based checkout (simpler approach)
-    const checkoutOptions = {
-      items: [{
-        price: priceId,
-        quantity: 1
-      }],
-      mode: 'subscription',
-      successUrl: window.location.origin + '/success.html',
-      cancelUrl: window.location.origin,
-    };
-    
-    console.log('Attempting checkout with options:', checkoutOptions);
-    
-    // Use the simplest possible redirect
-    stripe.redirectToCheckout(checkoutOptions).then(function(result) {
-      if (result.error) {
-        console.error('Stripe error:', result.error);
-        alert('Error: ' + result.error.message);
-        buttonElement.textContent = originalText;
-        buttonElement.disabled = false;
-      }
-    }).catch(function(error) {
-      console.error('Checkout error:', error);
-      
-      // Fallback: Try with lineItems instead of items
-      console.log('Trying fallback with lineItems...');
-      stripe.redirectToCheckout({
-        lineItems: [{
-          price: priceId,
-          quantity: 1
-        }],
-        mode: 'subscription',
-        successUrl: window.location.origin + '/success.html',
-        cancelUrl: window.location.origin,
-      }).then(function(result) {
-        if (result.error) {
-          console.error('Fallback Stripe error:', result.error);
-          alert('Error: ' + result.error.message);
-          buttonElement.textContent = originalText;
-          buttonElement.disabled = false;
-        }
-      }).catch(function(fallbackError) {
-        console.error('Both methods failed:', fallbackError);
-        alert('Checkout unavailable. Please try again later.');
-        buttonElement.textContent = originalText;
-        buttonElement.disabled = false;
-      });
-    });
+    // Redirect directly to Stripe Payment Link for immediate checkout
+    console.log('Redirecting to:', paymentLinkUrl);
+    window.location.href = paymentLinkUrl;
     
   } catch (error) {
-    console.error('JavaScript error:', error);
-    alert('Something went wrong. Please refresh and try again.');
+    console.error('Redirect error:', error);
+    alert('Unable to redirect to checkout. Please try again.');
     buttonElement.textContent = originalText;
     buttonElement.disabled = false;
   }
