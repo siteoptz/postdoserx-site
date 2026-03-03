@@ -648,8 +648,8 @@ footer .f-links a:hover{color:var(--navy)}
     <h2>$12/month is invisible next to your medication cost.</h2>
     <p class="pricing-sub">Start with a trial. Stay because it works.</p>
     <div class="pricing-grid">
-      <div class="p-card"><p class="p-tier">Trial</p><div class="p-price">$9.99</div><span class="p-period">per month, introductory</span><p class="p-desc">Basic meal plans synced to your injection schedule.</p><ul class="p-list"><li>Dose-day synchronized meals</li><li>Weekly grocery lists</li><li>Side effect food guide</li><li>Basic symptom logger</li></ul><button class="p-btn p-btn-o" onclick="startStripeCheckout('price_1SrSZbAYjb6yVLnRHNOJVKy2')">Start trial</button></div>
-      <div class="p-card p-feat"><p class="p-tier">NourishRx Premium</p><div class="p-price">$10</div><span class="p-period">per month</span><p class="p-desc">The full engine. Learns your patterns, adapts every week.</p><ul class="p-list"><li>Everything in Trial</li><li>Adaptive recipe engine</li><li>Meal rating feedback loop</li><li>Symptom-to-food matching</li><li>Community access</li><li>Progress tracking</li></ul><button class="p-btn p-btn-f" onclick="startStripeCheckout('price_1SrSYIAYjb6yVLnRYPJTOU5A')">Start premium</button></div>
+      <div class="p-card"><p class="p-tier">Trial</p><div class="p-price">$9.99</div><span class="p-period">per month, introductory</span><p class="p-desc">Basic meal plans synced to your injection schedule.</p><ul class="p-list"><li>Dose-day synchronized meals</li><li>Weekly grocery lists</li><li>Side effect food guide</li><li>Basic symptom logger</li></ul><button class="p-btn p-btn-o" onclick="startStripeCheckout('price_1SrSZbAYjb6yVLnRHNOJVKy2', this)">Start trial</button></div>
+      <div class="p-card p-feat"><p class="p-tier">NourishRx Premium</p><div class="p-price">$10</div><span class="p-period">per month</span><p class="p-desc">The full engine. Learns your patterns, adapts every week.</p><ul class="p-list"><li>Everything in Trial</li><li>Adaptive recipe engine</li><li>Meal rating feedback loop</li><li>Symptom-to-food matching</li><li>Community access</li><li>Progress tracking</li></ul><button class="p-btn p-btn-f" onclick="startStripeCheckout('price_1SrSYIAYjb6yVLnRYPJTOU5A', this)">Start premium</button></div>
       <div class="p-card"><p class="p-tier">Clinic</p><div class="p-price">Custom</div><span class="p-period">per patient, billed to practice</span><p class="p-desc">For prescribing clinics. Hand patients a plan with every script.</p><ul class="p-list"><li>Everything in Premium</li><li>Provider dashboard</li><li>Patient onboarding flow</li><li>Aggregate compliance data</li><li>White-label option</li></ul><button class="p-btn p-btn-o" onclick="openModal('contact')">Contact sales</button></div>
     </div>
   </div>
@@ -1094,14 +1094,13 @@ function handleContactSubmit(e){
 // Initialize Stripe with your live publishable key
 const stripe = Stripe('pk_live_51S7h5gAYjb6yVLnRYf9kpImpwogG8YN2us6dLdYcmREKy0wa1ovjLNyyzzttavOl178pEWYCSXFwkV6ZmUdYGViB00j8P4PRJ0');
 
-function startStripeCheckout(priceId) {
+function startStripeCheckout(priceId, buttonElement) {
   console.log('Starting Stripe checkout for:', priceId);
   
   // Show loading state
-  const button = event.target;
-  const originalText = button.textContent;
-  button.textContent = 'Loading...';
-  button.disabled = true;
+  const originalText = buttonElement.textContent;
+  buttonElement.textContent = 'Loading...';
+  buttonElement.disabled = true;
   
   // Create Stripe checkout session
   stripe.redirectToCheckout({
@@ -1121,15 +1120,15 @@ function startStripeCheckout(priceId) {
       // Show error message
       alert('Error: ' + result.error.message);
       // Reset button
-      button.textContent = originalText;
-      button.disabled = false;
+      buttonElement.textContent = originalText;
+      buttonElement.disabled = false;
     }
   }).catch(function(error) {
     console.error('Stripe error:', error);
     alert('Something went wrong. Please try again.');
     // Reset button
-    button.textContent = originalText;
-    button.disabled = false;
+    buttonElement.textContent = originalText;
+    buttonElement.disabled = false;
   });
 }
 </script>
