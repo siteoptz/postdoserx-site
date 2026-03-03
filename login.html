@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — PostDoseRX Premium</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #FDF8F4; --warm: #FEFCFA; --sand: #F5EDE4; --sand-light: #FAF6F1;
+  --gold: #C9A86C; --gold-light: #E8D5B0; --gold-dark: #8B7341;
+  --navy: #1B2A4A; --navy-light: #2D4166; --slate: #4A5568; --slate-light: #718096;
+  --magenta: #C6168D; --magenta-light: #FEF0F7; --magenta-dark: #9B1170;
+  --teal: #2A7F7F; --teal-light: #E6F5F5; --teal-dark: #1D5C5C;
+  --white: #FFFFFF; --border: #E8E0D6;
+  --text: #2D2D2D; --text-sec: #5A5A5A; --text-muted: #8A8A8A;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);background:var(--cream);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;min-height:100vh;display:flex;align-items:center;justify-content:center}
+
+.auth-container{max-width:400px;width:100%;padding:0 24px}
+.auth-card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:40px;box-shadow:0 4px 20px rgba(27,42,74,0.08)}
+
+.auth-header{text-align:center;margin-bottom:32px}
+.logo{font-family:'DM Serif Display',Georgia,serif;font-size:28px;color:var(--navy);margin-bottom:8px}
+.logo-rx{color:var(--magenta)}
+.auth-title{font-family:'DM Serif Display',Georgia,serif;font-size:32px;color:var(--navy);margin-bottom:8px}
+.auth-subtitle{color:var(--text-sec);font-size:14px}
+
+.form-group{margin-bottom:20px}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--navy);margin-bottom:6px}
+.form-input{width:100%;padding:14px 16px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;color:var(--text);background:var(--white);transition:border-color .15s,box-shadow .15s}
+.form-input:focus{outline:none;border-color:var(--magenta);box-shadow:0 0 0 3px rgba(198,22,141,.1)}
+.form-input::placeholder{color:var(--text-muted)}
+
+.form-submit{width:100%;background:var(--magenta);color:var(--white);border:none;padding:16px;border-radius:8px;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;transition:background .15s;margin-top:8px}
+.form-submit:hover{background:var(--magenta-dark)}
+.form-submit:disabled{opacity:.6;cursor:not-allowed}
+
+.auth-divider{margin:24px 0;text-align:center;color:var(--text-muted);font-size:12px;position:relative}
+.auth-divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border)}
+.auth-divider span{background:var(--white);padding:0 16px}
+
+.auth-links{text-align:center;margin-top:24px}
+.auth-links a{color:var(--magenta);text-decoration:none;font-size:14px;font-weight:500}
+.auth-links a:hover{text-decoration:underline}
+
+.subscription-notice{background:var(--teal-light);border:1px solid var(--teal);border-radius:8px;padding:16px;margin-bottom:24px;font-size:13px;color:var(--teal-dark)}
+.subscription-notice strong{color:var(--navy)}
+
+.back-link{position:absolute;top:20px;left:20px;color:var(--slate);text-decoration:none;font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px}
+.back-link:hover{color:var(--navy)}
+
+/* Error/Success Messages */
+.message{padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:16px}
+.message.error{background:rgba(220,53,69,.1);color:#dc3545;border:1px solid rgba(220,53,69,.2)}
+.message.success{background:rgba(40,167,69,.1);color:#28a745;border:1px solid rgba(40,167,69,.2)}
+
+/* Google OAuth Button */
+.google-signin-btn{width:100%;background:var(--white);color:var(--text);border:1px solid var(--border);padding:16px;border-radius:8px;font-family:inherit;font-size:16px;font-weight:500;cursor:pointer;transition:all .15s;margin-bottom:20px;display:flex;align-items:center;justify-content:center}
+.google-signin-btn:hover{background:var(--sand-light);border-color:var(--slate-light)}
+.google-signin-btn:disabled{opacity:.6;cursor:not-allowed}
+
+@media (max-width:480px){
+.auth-card{padding:32px 24px}
+.back-link{position:static;margin-bottom:20px}
+}
+</style>
+</head>
+<body>
+
+<a href="/" class="back-link">← Back to PostDoseRX</a>
+
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="logo">PostDose<span class="logo-rx">RX</span></div>
+      <h1 class="auth-title">Welcome Back</h1>
+      <p class="auth-subtitle">Sign in to your premium dashboard</p>
+    </div>
+
+    <div class="subscription-notice">
+      <strong>Premium Members Only</strong><br>
+      This dashboard is exclusive to NourishRx Premium subscribers ($10/month)
+    </div>
+
+    <div id="message-container"></div>
+
+    <!-- Google OAuth Login -->
+    <button id="google-signin" class="google-signin-btn">
+      <svg width="18" height="18" viewBox="0 0 18 18" style="margin-right:12px">
+        <path fill="#4285F4" d="M16.51 8.18l-6.08.06v2.35h3.53c-.15.77-.6 1.42-1.25 1.85v1.54h2.03c1.18-1.09 1.86-2.69 1.86-4.59 0-.43-.04-.85-.09-1.21z"/>
+        <path fill="#34A853" d="M8.43 16.5c1.69 0 3.1-.56 4.13-1.52l-2.03-1.54c-.56.37-1.28.59-2.1.59-1.62 0-2.99-1.09-3.48-2.56H2.85v1.59c1.02 2.04 3.13 3.44 5.58 3.44z"/>
+        <path fill="#FBBC04" d="M4.95 10.47c-.13-.37-.2-.77-.2-1.18s.07-.81.2-1.18V6.52H2.85C2.31 7.6 2 8.76 2 10s.31 2.4.85 3.48l2.1-1.59z"/>
+        <path fill="#EA4335" d="M8.43 3.94c.91 0 1.73.31 2.37.93l1.78-1.78C11.53 1.92 10.12 1.5 8.43 1.5 5.98 1.5 3.87 2.9 2.85 4.94l2.1 1.59c.49-1.47 1.86-2.59 3.48-2.59z"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <div class="auth-divider">
+      <span>or</span>
+    </div>
+
+    <form id="email-login-form">
+      <div class="form-group">
+        <label for="email" class="form-label">Email Address</label>
+        <input type="email" id="email" name="email" class="form-input" placeholder="your.email@example.com" required>
+      </div>
+      
+      <button type="submit" class="form-submit">Sign In with Email</button>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:8px;text-align:center">We'll verify your subscription status</p>
+    </form>
+
+    <div class="auth-links">
+      <p style="margin-bottom:12px">Don't have premium access yet?</p>
+      <a href="/#signup">Subscribe to Premium ($10/month)</a>
+    </div>
+
+    <div class="auth-links" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <a href="/forgot-password.html">Forgot your password?</a>
+    </div>
+  </div>
+</div>
+
+<!-- Google OAuth -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+// Google OAuth Configuration
+const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID'; // Replace with actual client ID
+const GHL_API_ENDPOINT = 'YOUR_GHL_API_ENDPOINT'; // Replace with your GHL webhook/API
+const GHL_API_KEY = 'YOUR_GHL_API_KEY'; // Replace with your GHL API key
+
+// Initialize Google OAuth
+function initializeGoogleAuth() {
+  if (typeof google !== 'undefined') {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleSignIn,
+      auto_select: false,
+      cancel_on_tap_outside: false
+    });
+  }
+}
+
+// Handle Google Sign-In
+async function handleGoogleSignIn(response) {
+  const submitBtn = document.getElementById('google-signin');
+  const originalText = submitBtn.textContent;
+  
+  try {
+    submitBtn.textContent = 'Verifying account...';
+    submitBtn.disabled = true;
+    clearMessage();
+    
+    // Decode Google JWT token to get user info
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    const email = payload.email;
+    const name = payload.name;
+    const googleId = payload.sub;
+    
+    console.log('Google user:', { email, name });
+    
+    // Check if user exists in GoHighLevel
+    const isValidCustomer = await verifyGHLCustomer(email);
+    
+    if (isValidCustomer) {
+      // Generate auth token and redirect to dashboard
+      const authToken = generateAuthToken(email, googleId);
+      redirectToDashboard(authToken, email, name);
+    } else {
+      showMessage('No active PostDoseRX Premium subscription found for this email address.', 'error');
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    }
+    
+  } catch (error) {
+    console.error('Google sign-in error:', error);
+    showMessage('Authentication failed. Please try again.', 'error');
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+  }
+}
+
+// Verify customer in GoHighLevel
+async function verifyGHLCustomer(email) {
+  try {
+    // Method 1: Using GHL API (requires server-side endpoint for security)
+    const response = await fetch('/api/verify-customer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.isValidCustomer;
+    }
+    
+    // Method 2: For demo purposes, simulate GHL check
+    // In production, this should be done server-side for security
+    console.log('Checking GHL customer status for:', email);
+    
+    // Simulate checking against known customer list
+    const demoCustomers = [
+      'demo@postdoserx.com',
+      'test@postdoserx.com',
+      'customer@postdoserx.com'
+    ];
+    
+    return demoCustomers.includes(email.toLowerCase());
+    
+  } catch (error) {
+    console.error('GHL verification error:', error);
+    return false;
+  }
+}
+
+// Email-only login form
+document.getElementById('email-login-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const submitBtn = this.querySelector('.form-submit');
+  const originalText = submitBtn.textContent;
+  const email = document.getElementById('email').value;
+  
+  try {
+    submitBtn.textContent = 'Verifying...';
+    submitBtn.disabled = true;
+    clearMessage();
+    
+    // Check if email exists in GoHighLevel
+    const isValidCustomer = await verifyGHLCustomer(email);
+    
+    if (isValidCustomer) {
+      // For email-only login, generate a magic link or simple token
+      const authToken = generateAuthToken(email, 'email_login');
+      redirectToDashboard(authToken, email);
+      
+    } else {
+      showMessage('No active PostDoseRX Premium subscription found. Please subscribe first or contact support.', 'error');
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    }
+    
+  } catch (error) {
+    console.error('Email login error:', error);
+    showMessage('Authentication failed. Please try again or contact support.', 'error');
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+  }
+});
+
+// Google Sign-In button click handler
+document.getElementById('google-signin').addEventListener('click', function() {
+  if (typeof google !== 'undefined') {
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // Fallback to popup if prompt fails
+        google.accounts.id.renderButton(
+          document.getElementById('google-signin'),
+          { theme: 'outline', size: 'large', width: '100%' }
+        );
+      }
+    });
+  } else {
+    showMessage('Google authentication is loading. Please wait a moment and try again.', 'error');
+  }
+});
+
+// Utility functions
+function generateAuthToken(email, provider) {
+  const timestamp = Date.now();
+  const tokenData = {
+    email: email,
+    provider: provider,
+    timestamp: timestamp,
+    expires: timestamp + (24 * 60 * 60 * 1000) // 24 hours
+  };
+  
+  // Simple token generation (in production, use proper JWT with server-side signing)
+  return 'auth_' + btoa(JSON.stringify(tokenData));
+}
+
+function redirectToDashboard(authToken, email, name = null) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const redirectUrl = urlParams.get('redirect') || 'https://app.postdoserx.com';
+  
+  let dashboardUrl = `${redirectUrl}?token=${authToken}&email=${encodeURIComponent(email)}`;
+  if (name) {
+    dashboardUrl += `&name=${encodeURIComponent(name)}`;
+  }
+  
+  window.location.href = dashboardUrl;
+}
+
+function showMessage(text, type = 'error') {
+  const container = document.getElementById('message-container');
+  container.innerHTML = `<div class="message ${type}">${text}</div>`;
+}
+
+function clearMessage() {
+  document.getElementById('message-container').innerHTML = '';
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize Google OAuth
+  initializeGoogleAuth();
+  
+  // Auto-focus email field
+  document.getElementById('email').focus();
+  
+  // Handle demo login for testing
+  if (window.location.search.includes('demo=true')) {
+    document.getElementById('email').value = 'demo@postdoserx.com';
+  }
+});
+
+// Initialize Google OAuth when script loads
+window.addEventListener('load', initializeGoogleAuth);
+</script>
+
+</body>
+</html>
