@@ -374,8 +374,8 @@ function generateAuthToken(email, provider) {
 
 function redirectToDashboard(authToken, email, name = null) {
   const urlParams = new URLSearchParams(window.location.search);
-  // Use latest Vercel deployment URL until DNS is configured
-  const redirectUrl = urlParams.get('redirect') || 'https://postdoserx-iuwmj88bv-siteoptzs-projects.vercel.app';
+  // Use app.postdoserx.com - the official dashboard URL
+  const redirectUrl = urlParams.get('redirect') || 'https://app.postdoserx.com';
   
   let dashboardUrl = `${redirectUrl}?token=${authToken}&email=${encodeURIComponent(email)}`;
   if (name) {
