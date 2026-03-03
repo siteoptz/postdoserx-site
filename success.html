@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome to PostDoseRX — Subscription Confirmed</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #FDF8F4; --warm: #FEFCFA; --sand: #F5EDE4; --sand-light: #FAF6F1;
+  --gold: #C9A86C; --gold-light: #E8D5B0; --gold-dark: #8B7341;
+  --navy: #1B2A4A; --navy-light: #2D4166; --slate: #4A5568; --slate-light: #718096;
+  --magenta: #C6168D; --magenta-light: #FEF0F7; --magenta-dark: #9B1170;
+  --teal: #2A7F7F; --teal-light: #E6F5F5; --teal-dark: #1D5C5C;
+  --white: #FFFFFF; --border: #E8E0D6;
+  --text: #2D2D2D; --text-sec: #5A5A5A; --text-muted: #8A8A8A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);background:var(--cream);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;min-height:100vh;display:flex;align-items:center;justify-content:center}
+
+.success-container{max-width:600px;text-align:center;padding:48px 24px}
+.success-icon{width:80px;height:80px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;font-size:32px;color:white}
+h1{font-family:'DM Serif Display',Georgia,serif;font-size:42px;color:var(--navy);margin-bottom:16px}
+.subtitle{font-size:18px;color:var(--text-sec);margin-bottom:32px;line-height:1.5}
+.next-steps{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:32px;margin:32px 0;text-align:left}
+.next-steps h3{color:var(--navy);margin-bottom:16px;font-size:18px}
+.step{margin-bottom:16px;display:flex;align-items:flex-start;gap:12px}
+.step-number{background:var(--magenta);color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.step-text{flex:1;font-size:14px;color:var(--text-sec);line-height:1.5}
+.cta-button{display:inline-block;background:var(--magenta);color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;transition:background 0.2s}
+.cta-button:hover{background:var(--magenta-dark)}
+.support-note{margin-top:32px;padding-top:24px;border-top:1px solid var(--border);font-size:14px;color:var(--text-muted)}
+</style>
+</head>
+<body>
+
+<div class="success-container">
+  <div class="success-icon">✓</div>
+  
+  <h1>Welcome to PostDoseRX!</h1>
+  <p class="subtitle">Your subscription has been confirmed and you're all set to start your personalized GLP-1 meal planning journey.</p>
+  
+  <div class="next-steps">
+    <h3>What happens next?</h3>
+    
+    <div class="step">
+      <div class="step-number">1</div>
+      <div class="step-text">
+        <strong>Check your email</strong><br>
+        You'll receive a confirmation email with your account setup instructions within the next few minutes.
+      </div>
+    </div>
+    
+    <div class="step">
+      <div class="step-number">2</div>
+      <div class="step-text">
+        <strong>Create your profile</strong><br>
+        Complete your medication schedule and dietary preferences to get personalized meal plans.
+      </div>
+    </div>
+    
+    <div class="step">
+      <div class="step-number">3</div>
+      <div class="step-text">
+        <strong>Start meal planning</strong><br>
+        Access your first dose-synchronized meal plans and grocery lists immediately.
+      </div>
+    </div>
+  </div>
+  
+  <a href="https://app.postdoserx.com" class="cta-button">Access Your Dashboard</a>
+  
+  <p class="support-note">
+    Need help? Email us at <strong>support@postdoserx.com</strong><br>
+    We typically respond within 24 hours.
+  </p>
+</div>
+
+<!-- Simple analytics tracking for conversion -->
+<script>
+// Track successful subscription conversion
+if (typeof gtag !== 'undefined') {
+  gtag('event', 'purchase', {
+    'event_category': 'subscription',
+    'event_label': 'postdoserx_subscription_success'
+  });
+}
+
+// Track with Facebook Pixel if available
+if (typeof fbq !== 'undefined') {
+  fbq('track', 'Subscribe');
+}
+
+console.log('PostDoseRX subscription successful');
+</script>
+
+</body>
+</html>
