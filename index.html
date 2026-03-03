@@ -1131,7 +1131,6 @@ function startStripeCheckout(priceId, buttonElement) {
     mode: 'subscription',
     successUrl: window.location.origin + '/success.html',
     cancelUrl: window.location.origin,
-    automaticTax: {enabled: true},
     billingAddressCollection: 'required',
     allowPromotionCodes: true,
   }).then(function (result) {
