@@ -1095,14 +1095,34 @@ function handleContactSubmit(e){
 const stripe = Stripe('pk_live_51S7h5gAYjb6yVLnRYf9kpImpwogG8YN2us6dLdYcmREKy0wa1ovjLNyyzzttavOl178pEWYCSXFwkV6ZmUdYGViB00j8P4PRJ0');
 
 function startStripeCheckout(priceId, buttonElement) {
-  console.log('Starting Stripe checkout for:', priceId);
+  console.log('Starting Stripe checkout for price:', priceId);
+  console.log('Button element:', buttonElement);
   
   // Show loading state
   const originalText = buttonElement.textContent;
   buttonElement.textContent = 'Loading...';
   buttonElement.disabled = true;
   
+  // Add timeout to reset button if Stripe doesn't respond
+  const timeoutId = setTimeout(function() {
+    console.log('Checkout timeout - resetting button');
+    buttonElement.textContent = originalText;
+    buttonElement.disabled = false;
+    alert('Checkout is taking longer than expected. Please try again.');
+  }, 10000); // 10 second timeout
+  
+  // Check if Stripe is loaded
+  if (!stripe) {
+    console.error('Stripe not loaded');
+    clearTimeout(timeoutId);
+    buttonElement.textContent = originalText;
+    buttonElement.disabled = false;
+    alert('Payment system not loaded. Please refresh and try again.');
+    return;
+  }
+  
   // Create Stripe checkout session
+  console.log('Calling stripe.redirectToCheckout...');
   stripe.redirectToCheckout({
     lineItems: [{
       price: priceId,
@@ -1113,20 +1133,22 @@ function startStripeCheckout(priceId, buttonElement) {
     cancelUrl: window.location.origin,
     automaticTax: {enabled: true},
     billingAddressCollection: 'required',
-    customerEmail: null, // Let customer enter their email
     allowPromotionCodes: true,
   }).then(function (result) {
+    console.log('Stripe redirectToCheckout result:', result);
+    clearTimeout(timeoutId);
+    
     if (result.error) {
-      // Show error message
+      console.error('Stripe checkout error:', result.error);
       alert('Error: ' + result.error.message);
-      // Reset button
       buttonElement.textContent = originalText;
       buttonElement.disabled = false;
     }
+    // If successful, the page will redirect, so no need to reset button
   }).catch(function(error) {
-    console.error('Stripe error:', error);
-    alert('Something went wrong. Please try again.');
-    // Reset button
+    console.error('Stripe checkout catch error:', error);
+    clearTimeout(timeoutId);
+    alert('Checkout failed: ' + error.message);
     buttonElement.textContent = originalText;
     buttonElement.disabled = false;
   });
