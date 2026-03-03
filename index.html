@@ -1494,6 +1494,27 @@ document.addEventListener('keydown', function(e) {
     closeSignupModal();
   }
 });
+
+// Handle URL hash for direct signup links
+function handleUrlHash() {
+  const hash = window.location.hash;
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  if (hash === '#signup') {
+    // Default to Premium plan if no specific plan requested
+    const planName = urlParams.get('plan') || 'Premium';
+    const priceId = planName === 'Trial' ? 'price_1SrSZbAYjb6yVLnRHNOJVKy2' : 'price_1SrSYIAYjb6yVLnRYPJTOU5A';
+    
+    // Small delay to ensure page is loaded
+    setTimeout(() => {
+      openSignupModal(planName, priceId);
+    }, 500);
+  }
+}
+
+// Check hash on page load and hash changes
+window.addEventListener('load', handleUrlHash);
+window.addEventListener('hashchange', handleUrlHash);
 </script>
 
 </body>

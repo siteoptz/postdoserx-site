@@ -106,11 +106,11 @@ body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);backgro
 
     <div class="auth-links">
       <p style="margin-bottom:12px">Don't have premium access yet?</p>
-      <a href="#" id="signup-link">Subscribe to Premium ($10/month)</a>
+      <a href="/#signup" class="signup-link">Subscribe to Premium ($10/month)</a>
     </div>
 
     <div class="auth-links" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <a href="/forgot-password.html">Forgot your password?</a>
+      <a href="mailto:support@postdoserx.com?subject=Password Reset Request">Forgot your password?</a>
     </div>
   </div>
 </div>
@@ -356,13 +356,7 @@ document.getElementById('google-signin').addEventListener('click', function() {
   }
 });
 
-// Signup link handler - direct redirect to signup page
-document.getElementById('signup-link').addEventListener('click', function(e) {
-  e.preventDefault();
-  
-  // Direct redirect to signup page
-  window.location.href = '/#signup';
-});
+// Signup link now uses direct href - no JavaScript handler needed
 
 // Utility functions
 function generateAuthToken(email, provider) {
