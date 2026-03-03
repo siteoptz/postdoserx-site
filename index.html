@@ -1096,60 +1096,69 @@ const stripe = Stripe('pk_live_51S7h5gAYjb6yVLnRYf9kpImpwogG8YN2us6dLdYcmREKy0wa
 
 function startStripeCheckout(priceId, buttonElement) {
   console.log('Starting Stripe checkout for price:', priceId);
-  console.log('Button element:', buttonElement);
   
   // Show loading state
   const originalText = buttonElement.textContent;
   buttonElement.textContent = 'Loading...';
   buttonElement.disabled = true;
   
-  // Add timeout to reset button if Stripe doesn't respond
-  const timeoutId = setTimeout(function() {
-    console.log('Checkout timeout - resetting button');
-    buttonElement.textContent = originalText;
-    buttonElement.disabled = false;
-    alert('Checkout is taking longer than expected. Please try again.');
-  }, 10000); // 10 second timeout
-  
-  // Check if Stripe is loaded
-  if (!stripe) {
-    console.error('Stripe not loaded');
-    clearTimeout(timeoutId);
-    buttonElement.textContent = originalText;
-    buttonElement.disabled = false;
-    alert('Payment system not loaded. Please refresh and try again.');
-    return;
-  }
-  
-  // Create Stripe checkout session
-  console.log('Calling stripe.redirectToCheckout...');
-  stripe.redirectToCheckout({
-    lineItems: [{
-      price: priceId,
-      quantity: 1,
-    }],
-    mode: 'subscription',
-    successUrl: window.location.origin + '/success.html',
-    cancelUrl: window.location.origin,
-    billingAddressCollection: 'required',
-  }).then(function (result) {
-    console.log('Stripe redirectToCheckout result:', result);
-    clearTimeout(timeoutId);
+  // Try the most basic Stripe checkout approach
+  try {
+    // Option 1: Try direct price-based checkout (simpler approach)
+    const checkoutOptions = {
+      items: [{
+        price: priceId,
+        quantity: 1
+      }],
+      mode: 'subscription',
+      successUrl: window.location.origin + '/success.html',
+      cancelUrl: window.location.origin,
+    };
     
-    if (result.error) {
-      console.error('Stripe checkout error:', result.error);
-      alert('Error: ' + result.error.message);
-      buttonElement.textContent = originalText;
-      buttonElement.disabled = false;
-    }
-    // If successful, the page will redirect, so no need to reset button
-  }).catch(function(error) {
-    console.error('Stripe checkout catch error:', error);
-    clearTimeout(timeoutId);
-    alert('Checkout failed: ' + error.message);
+    console.log('Attempting checkout with options:', checkoutOptions);
+    
+    // Use the simplest possible redirect
+    stripe.redirectToCheckout(checkoutOptions).then(function(result) {
+      if (result.error) {
+        console.error('Stripe error:', result.error);
+        alert('Error: ' + result.error.message);
+        buttonElement.textContent = originalText;
+        buttonElement.disabled = false;
+      }
+    }).catch(function(error) {
+      console.error('Checkout error:', error);
+      
+      // Fallback: Try with lineItems instead of items
+      console.log('Trying fallback with lineItems...');
+      stripe.redirectToCheckout({
+        lineItems: [{
+          price: priceId,
+          quantity: 1
+        }],
+        mode: 'subscription',
+        successUrl: window.location.origin + '/success.html',
+        cancelUrl: window.location.origin,
+      }).then(function(result) {
+        if (result.error) {
+          console.error('Fallback Stripe error:', result.error);
+          alert('Error: ' + result.error.message);
+          buttonElement.textContent = originalText;
+          buttonElement.disabled = false;
+        }
+      }).catch(function(fallbackError) {
+        console.error('Both methods failed:', fallbackError);
+        alert('Checkout unavailable. Please try again later.');
+        buttonElement.textContent = originalText;
+        buttonElement.disabled = false;
+      });
+    });
+    
+  } catch (error) {
+    console.error('JavaScript error:', error);
+    alert('Something went wrong. Please refresh and try again.');
     buttonElement.textContent = originalText;
     buttonElement.disabled = false;
-  });
+  }
 }
 </script>
 </body>
