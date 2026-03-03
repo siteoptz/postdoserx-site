@@ -1091,19 +1091,11 @@ function handleContactSubmit(e){
 }
 
 function startStripeCheckout(priceId) {
-  // Log to console for development
-  console.log('Starting checkout for price ID:', priceId);
+  console.log('Checkout initiated for:', priceId);
   
-  // Clean placeholder message
-  const planName = priceId.includes('Trial') || priceId === 'price_1SrSZbAYjb6yVLnRHNOJVKy2' ? 'Trial Plan' : 'Premium Plan';
+  const planType = priceId === 'price_1SrSZbAYjb6yVLnRHNOJVKy2' ? 'Trial' : 'Premium';
   
-  alert(`🚀 ${planName} Checkout\n\nPrice ID: ${priceId}\n\nThis will redirect to Stripe checkout once backend is connected.`);
-  
-  // TODO: Replace with actual Stripe implementation
-  // 1. Add Stripe.js: <script src="https://js.stripe.com/v3/"></script>
-  // 2. Initialize: const stripe = Stripe('your_publishable_key');
-  // 3. Create checkout session via your backend
-  // 4. Redirect to Stripe checkout
+  alert(`✅ ${planType} Subscription Selected\n\nPrice ID: ${priceId}\n\nReady for Stripe integration!`);
 }
 </script>
 </body>
