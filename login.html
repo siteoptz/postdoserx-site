@@ -225,46 +225,57 @@ async function verifyGHLCustomer(email, isSignup = false) {
         'demo@postdoserx.com',
         'test@postdoserx.com',
         'customer@postdoserx.com',
-        'siteoptz@gmail.com', // Add your email for testing
-        'antonio@siteoptz.com' // Add your email for testing
+        'siteoptz@gmail.com',
+        'antonio@siteoptz.com',
+        'siteoptz@proton.me' // Add any email you want to test with
       ];
       
       const isDemo = demoCustomers.includes(email.toLowerCase());
-      console.log('Demo mode check:', isDemo);
+      console.log('Demo mode check for:', email, 'Result:', isDemo, 'Is signup:', isSignup);
       
-      if (isDemo || isSignup) {
+      if (isDemo) {
         return {
           isValidCustomer: true,
-          isNewCustomer: isSignup,
-          needsSubscription: isSignup
+          isNewCustomer: false,
+          needsSubscription: false
+        };
+      }
+      
+      if (isSignup) {
+        return {
+          isValidCustomer: true,
+          isNewCustomer: true,
+          needsSubscription: true
         };
       }
     }
     
     // Method 1: Check via API endpoint
-    try {
-      const response = await fetch('/api/verify-customer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, isSignup })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('API verification result:', data);
-        return {
-          isValidCustomer: data.isValidCustomer,
-          isNewCustomer: data.isNewCustomer || false,
-          needsSubscription: data.needsSubscription || false,
-          customerData: data.customerData
-        };
-      } else {
-        console.log('API response not ok:', response.status);
+    if (!IS_DEMO_MODE) {
+      try {
+        const response = await fetch('/api/verify-customer', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, isSignup })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('API verification result:', data);
+          return {
+            isValidCustomer: data.isValidCustomer,
+            isNewCustomer: data.isNewCustomer || false,
+            needsSubscription: data.needsSubscription || false,
+            customerData: data.customerData
+          };
+        } else {
+          console.log('API response not ok:', response.status, 'Falling back to demo mode');
+        }
+      } catch (apiError) {
+        console.log('API verification failed, using fallback:', apiError.message);
       }
-    } catch (apiError) {
-      console.log('API verification failed, using fallback:', apiError.message);
     }
     
     // Method 2: Fallback for new signups
@@ -394,7 +405,8 @@ function generateAuthToken(email, provider) {
 
 function redirectToDashboard(authToken, email, name = null) {
   const urlParams = new URLSearchParams(window.location.search);
-  const redirectUrl = urlParams.get('redirect') || 'https://app.postdoserx.com';
+  // Use latest Vercel deployment URL until DNS is configured
+  const redirectUrl = urlParams.get('redirect') || 'https://postdoserx-iuwmj88bv-siteoptzs-projects.vercel.app';
   
   let dashboardUrl = `${redirectUrl}?token=${authToken}&email=${encodeURIComponent(email)}`;
   if (name) {
