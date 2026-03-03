@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact — PostDoseRX</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #FDF8F4; --warm: #FEFCFA; --sand: #F5EDE4; --sand-light: #FAF6F1;
+  --gold: #C9A86C; --gold-light: #E8D5B0; --gold-dark: #8B7341;
+  --navy: #1B2A4A; --navy-light: #2D4166; --slate: #4A5568; --slate-light: #718096;
+  --magenta: #C6168D; --magenta-light: #FEF0F7; --magenta-dark: #9B1170;
+  --teal: #2A7F7F; --teal-light: #E6F5F5; --teal-dark: #1D5C5C;
+  --white: #FFFFFF; --border: #E8E0D6;
+  --text: #2D2D2D; --text-sec: #5A5A5A; --text-muted: #8A8A8A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);background:var(--cream);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+::selection{background:var(--navy);color:var(--cream)}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 48px}
+.serif{font-family:'DM Serif Display',Georgia,serif}
+.mono{font-family:'Montserrat',sans-serif}
+.label{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-dark)}
+h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:52px;line-height:1.1;letter-spacing:-.02em;color:var(--navy)}
+h1 em{font-style:italic}
+h2{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:36px;line-height:1.2;letter-spacing:-.01em;color:var(--navy)}
+h3{font-size:17px;font-weight:700;color:var(--navy);margin-bottom:8px}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;background:rgba(253,248,244,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 48px}
+nav .logo{font-family:'DM Serif Display',Georgia,serif;font-size:18px;font-weight:400;color:var(--navy);text-decoration:none;display:flex;flex-direction:column;line-height:1}
+nav .logo .logo-name{white-space:nowrap}
+nav .logo .logo-rx{color:var(--magenta)}
+nav .logo .tagline{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--slate-light);margin-top:2px}
+nav .links{display:flex;align-items:center;gap:28px}
+nav .links a{font-size:13px;font-weight:500;color:var(--slate);text-decoration:none;transition:color .15s}
+nav .links a:hover{color:var(--navy)}
+.btn-sm{display:inline-block;padding:7px 18px;background:var(--magenta);color:#fff !important;font-size:12px;font-weight:700;text-decoration:none;transition:background .15s;border-radius:6px}
+.btn-sm:hover{background:var(--magenta-dark);color:#fff !important}
+
+/* CONTENT STYLES */
+.content{padding:130px 0 88px;border-bottom:1px solid var(--border)}
+.content .wrap{max-width:760px}
+.content-header{margin-bottom:48px}
+.content-kicker{font-size:11px;color:var(--magenta);letter-spacing:.14em;text-transform:uppercase;margin-bottom:24px;font-weight:700}
+.content h1{margin-bottom:20px;font-size:42px}
+.content-lede{font-size:16px;line-height:1.72;color:var(--text-sec)}
+.content-body{font-size:15px;line-height:1.75;color:var(--text-sec)}
+.content-body p{margin-bottom:24px}
+.content-body h2{font-size:24px;margin-top:48px;margin-bottom:20px}
+.content-body h3{font-size:17px;margin-top:32px;margin-bottom:16px}
+.content-body strong{color:var(--navy);font-weight:600}
+.content-body ul{margin-left:24px;margin-bottom:24px}
+.content-body li{margin-bottom:8px}
+
+/* CONTACT FORM */
+.contact-form{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:32px;margin:32px 0}
+.form-group{margin-bottom:24px}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--navy);margin-bottom:8px}
+.form-input{width:100%;padding:12px 16px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;color:var(--text);background:var(--white);transition:border-color .15s,box-shadow .15s}
+.form-input:focus{outline:none;border-color:var(--magenta);box-shadow:0 0 0 3px rgba(198,22,141,.1)}
+.form-input::placeholder{color:var(--text-muted)}
+.form-textarea{min-height:120px;resize:vertical}
+.form-submit{background:var(--magenta);color:var(--white);border:none;padding:14px 28px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s;margin-top:8px}
+.form-submit:hover{background:var(--magenta-dark)}
+.form-submit:disabled{opacity:.6;cursor:not-allowed}
+
+/* CONTACT CARDS */
+.contact-cards{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:32px 0}
+.contact-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center}
+.contact-icon{width:48px;height:48px;background:var(--magenta);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:20px;color:var(--white)}
+.contact-card h3{margin-bottom:8px}
+.contact-card p{color:var(--text-sec);font-size:14px;margin-bottom:12px}
+.contact-card a{color:var(--magenta);text-decoration:none;font-weight:600;font-size:14px}
+.contact-card a:hover{text-decoration:underline}
+
+/* FOOTER */
+.footer{padding:56px 0;background:var(--navy);color:rgba(255,255,255,.7)}
+.footer .wrap{text-align:center}
+.footer-links{display:flex;justify-content:center;gap:32px;margin-bottom:32px}
+.footer-links a{color:rgba(255,255,255,.6);text-decoration:none;font-size:14px;font-weight:500;transition:color .15s}
+.footer-links a:hover{color:rgba(255,255,255,.9)}
+.footer-copy{font-size:12px;color:var(--slate-light)}
+
+/* RESPONSIVE */
+@media (max-width:768px){
+.wrap{padding:0 24px}
+nav{padding:0 24px}
+nav .links a:not(.btn-sm){display:none}
+.content{padding:100px 0 60px}
+h1{font-size:36px}
+h2{font-size:28px}
+.content-body h2{font-size:20px}
+.contact-cards{grid-template-columns:1fr}
+.footer-links{flex-direction:column;gap:16px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <span class="logo-name">PostDose<span class="logo-rx">RX</span></span>
+    <span class="tagline">Meal planning built around your injection day</span>
+  </a>
+  <div class="links">
+    <a href="/">Home</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
+    <a href="/contact.html">Contact</a>
+    <a href="/#signup" class="btn-sm">Get Started</a>
+  </div>
+</nav>
+
+<section class="content">
+  <div class="wrap">
+    <div class="content-header">
+      <div class="content-kicker">Get In Touch</div>
+      <h1>Contact Us</h1>
+      <div class="content-lede">Have questions about PostDoseRX? We're here to help you on your GLP-1 journey. Reach out to our team for support, feedback, or partnership opportunities.</div>
+    </div>
+    
+    <div class="contact-cards">
+      <div class="contact-card">
+        <div class="contact-icon">📧</div>
+        <h3>General Support</h3>
+        <p>Questions about your meal plans, account, or technical issues</p>
+        <a href="mailto:support@postdoserx.com">support@postdoserx.com</a>
+      </div>
+      
+      <div class="contact-card">
+        <div class="contact-icon">💼</div>
+        <h3>Business Inquiries</h3>
+        <p>Partnerships, press, or collaboration opportunities</p>
+        <a href="mailto:hello@postdoserx.com">hello@postdoserx.com</a>
+      </div>
+    </div>
+    
+    <div class="content-body">
+      <h2>Send Us a Message</h2>
+      <p>Fill out the form below and we'll get back to you within 24 hours.</p>
+      
+      <form class="contact-form" id="contact-form">
+        <div class="form-group">
+          <label for="name" class="form-label">Name *</label>
+          <input type="text" id="name" name="name" class="form-input" placeholder="Your full name" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="email" class="form-label">Email Address *</label>
+          <input type="email" id="email" name="email" class="form-input" placeholder="your.email@example.com" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="subject" class="form-label">Subject *</label>
+          <select id="subject" name="subject" class="form-input" required>
+            <option value="">Select a topic</option>
+            <option value="technical-support">Technical Support</option>
+            <option value="meal-plan-question">Meal Plan Questions</option>
+            <option value="account-billing">Account & Billing</option>
+            <option value="feedback">Feedback & Suggestions</option>
+            <option value="partnership">Partnership Inquiry</option>
+            <option value="press">Press & Media</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="glp1-medication" class="form-label">Current GLP-1 Medication (Optional)</label>
+          <select id="glp1-medication" name="glp1-medication" class="form-input">
+            <option value="">Select your medication</option>
+            <option value="ozempic">Ozempic (Semaglutide)</option>
+            <option value="wegovy">Wegovy (Semaglutide)</option>
+            <option value="mounjaro">Mounjaro (Tirzepatide)</option>
+            <option value="zepbound">Zepbound (Tirzepatide)</option>
+            <option value="saxenda">Saxenda (Liraglutide)</option>
+            <option value="victoza">Victoza (Liraglutide)</option>
+            <option value="rybelsus">Rybelsus (Semaglutide)</option>
+            <option value="other">Other</option>
+            <option value="planning-to-start">Planning to start</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="message" class="form-label">Message *</label>
+          <textarea id="message" name="message" class="form-input form-textarea" placeholder="Tell us more about your question or how we can help..." required></textarea>
+        </div>
+        
+        <button type="submit" class="form-submit">Send Message</button>
+      </form>
+      
+      <h2>Frequently Asked Questions</h2>
+      
+      <h3>How quickly will I receive my meal plans?</h3>
+      <p>Your personalized meal plans are generated instantly upon signup and can be accessed immediately in your dashboard.</p>
+      
+      <h3>Can I modify meal plans for my dietary restrictions?</h3>
+      <p>Absolutely! Our meal plans can be customized for vegetarian, vegan, gluten-free, dairy-free, and other dietary preferences.</p>
+      
+      <h3>Do you provide medical advice?</h3>
+      <p>No, PostDoseRX provides meal planning suggestions only. We are not a medical service and do not provide medical advice. Always consult your healthcare provider.</p>
+      
+      <h3>What GLP-1 medications do you support?</h3>
+      <p>We support all major GLP-1 medications including Ozempic, Wegovy, Mounjaro, Zepbound, Saxenda, Victoza, and Rybelsus.</p>
+      
+      <h3>Can I cancel my subscription anytime?</h3>
+      <p>Yes, you can cancel your subscription at any time. There are no cancellation fees or long-term commitments.</p>
+      
+      <h2>Response Times</h2>
+      <ul>
+        <li><strong>General Support:</strong> Within 24 hours</li>
+        <li><strong>Technical Issues:</strong> Within 12 hours</li>
+        <li><strong>Billing Questions:</strong> Within 24 hours</li>
+        <li><strong>Partnership Inquiries:</strong> Within 3-5 business days</li>
+      </ul>
+      
+      <h2>Other Ways to Connect</h2>
+      <p>Follow us on social media for daily GLP-1 tips, recipe inspiration, and community support:</p>
+      
+      <ul>
+        <li>Instagram: @postdoserx</li>
+        <li>Facebook: PostDoseRX</li>
+        <li>TikTok: @postdoserx</li>
+      </ul>
+      
+      <p><strong>Medical Disclaimer:</strong> PostDoseRX is not a medical service. Our meal planning suggestions are for informational purposes only and should not replace professional medical advice. Always consult with your healthcare provider regarding your GLP-1 medication and dietary needs.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/terms.html">Terms of Service</a>
+      <a href="/contact.html">Contact</a>
+    </div>
+    <div class="footer-copy">
+      © 2024 PostDoseRX. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script>
+document.getElementById('contact-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const submitBtn = this.querySelector('.form-submit');
+  const originalText = submitBtn.textContent;
+  
+  // Show loading state
+  submitBtn.textContent = 'Sending...';
+  submitBtn.disabled = true;
+  
+  // Simulate form submission (replace with actual integration)
+  setTimeout(() => {
+    // Reset form
+    this.reset();
+    
+    // Reset button
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+    
+    // Show success message
+    alert('Thank you for your message! We\'ll get back to you within 24 hours.');
+    
+    // Here you would integrate with your contact form service:
+    // - Formspree: https://formspree.io/
+    // - Netlify Forms: https://docs.netlify.com/forms/setup/
+    // - EmailJS: https://www.emailjs.com/
+    
+  }, 1500);
+});
+</script>
+
+</body>
+</html>

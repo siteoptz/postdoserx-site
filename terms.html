@@ -1,456 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terms of Service - PostDoseRx</title>
-    <meta name="description" content="PostDoseRx Terms of Service - Agreement for using our GLP-1 meal planning platform and community features.">
-    
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- CSS -->
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service — PostDoseRX</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #FDF8F4; --warm: #FEFCFA; --sand: #F5EDE4; --sand-light: #FAF6F1;
+  --gold: #C9A86C; --gold-light: #E8D5B0; --gold-dark: #8B7341;
+  --navy: #1B2A4A; --navy-light: #2D4166; --slate: #4A5568; --slate-light: #718096;
+  --magenta: #C6168D; --magenta-light: #FEF0F7; --magenta-dark: #9B1170;
+  --teal: #2A7F7F; --teal-light: #E6F5F5; --teal-dark: #1D5C5C;
+  --white: #FFFFFF; --border: #E8E0D6;
+  --text: #2D2D2D; --text-sec: #5A5A5A; --text-muted: #8A8A8A;
+}
 
-        :root {
-            --primary-color: #4F46E5;
-            --primary-dark: #3730A3;
-            --secondary-color: #10B981;
-            --background-light: #F8FAFC;
-            --text-dark: #1F2937;
-            --text-gray: #6B7280;
-            --border-light: #E5E7EB;
-            --white: #FFFFFF;
-        }
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);background:var(--cream);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+::selection{background:var(--navy);color:var(--cream)}
 
-        body {
-            font-family: 'Inter', sans-serif;
-            line-height: 1.6;
-            color: var(--text-dark);
-            background-color: var(--white);
-        }
+.wrap{max-width:1080px;margin:0 auto;padding:0 48px}
+.serif{font-family:'DM Serif Display',Georgia,serif}
+.mono{font-family:'Montserrat',sans-serif}
+.label{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-dark)}
+h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:52px;line-height:1.1;letter-spacing:-.02em;color:var(--navy)}
+h1 em{font-style:italic}
+h2{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:36px;line-height:1.2;letter-spacing:-.01em;color:var(--navy)}
+h3{font-size:17px;font-weight:700;color:var(--navy);margin-bottom:8px}
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;background:rgba(253,248,244,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 48px}
+nav .logo{font-family:'DM Serif Display',Georgia,serif;font-size:18px;font-weight:400;color:var(--navy);text-decoration:none;display:flex;flex-direction:column;line-height:1}
+nav .logo .logo-name{white-space:nowrap}
+nav .logo .logo-rx{color:var(--magenta)}
+nav .logo .tagline{font-family:'Montserrat',sans-serif;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--slate-light);margin-top:2px}
+nav .links{display:flex;align-items:center;gap:28px}
+nav .links a{font-size:13px;font-weight:500;color:var(--slate);text-decoration:none;transition:color .15s}
+nav .links a:hover{color:var(--navy)}
+.btn-sm{display:inline-block;padding:7px 18px;background:var(--magenta);color:#fff !important;font-size:12px;font-weight:700;text-decoration:none;transition:background .15s;border-radius:6px}
+.btn-sm:hover{background:var(--magenta-dark);color:#fff !important}
 
-        /* Header */
-        header {
-            background: var(--white);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            padding: 1rem 0;
-        }
+/* CONTENT STYLES */
+.content{padding:130px 0 88px;border-bottom:1px solid var(--border)}
+.content .wrap{max-width:760px}
+.content-header{margin-bottom:48px}
+.content-kicker{font-size:11px;color:var(--magenta);letter-spacing:.14em;text-transform:uppercase;margin-bottom:24px;font-weight:700}
+.content h1{margin-bottom:20px;font-size:42px}
+.content-lede{font-size:16px;line-height:1.72;color:var(--text-sec)}
+.content-body{font-size:15px;line-height:1.75;color:var(--text-sec)}
+.content-body p{margin-bottom:24px}
+.content-body h2{font-size:24px;margin-top:48px;margin-bottom:20px}
+.content-body h3{font-size:17px;margin-top:32px;margin-bottom:16px}
+.content-body strong{color:var(--navy);font-weight:600}
+.content-body ul{margin-left:24px;margin-bottom:24px}
+.content-body li{margin-bottom:8px}
 
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+/* WARNING BOX */
+.warning-box{background:var(--magenta-light);border:2px solid var(--magenta);border-radius:12px;padding:24px;margin:32px 0}
+.warning-box h3{color:var(--magenta-dark);margin-top:0;margin-bottom:12px}
+.warning-box p{color:var(--magenta-dark)}
 
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            text-decoration: none;
-        }
+/* FOOTER */
+.footer{padding:56px 0;background:var(--navy);color:rgba(255,255,255,.7)}
+.footer .wrap{text-align:center}
+.footer-links{display:flex;justify-content:center;gap:32px;margin-bottom:32px}
+.footer-links a{color:rgba(255,255,255,.6);text-decoration:none;font-size:14px;font-weight:500;transition:color .15s}
+.footer-links a:hover{color:rgba(255,255,255,.9)}
+.footer-copy{font-size:12px;color:var(--slate-light)}
 
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            list-style: none;
-        }
-
-        .nav-links a {
-            color: var(--text-dark);
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .nav-links a:hover {
-            color: var(--primary-color);
-        }
-
-        /* Main Content */
-        .main-content {
-            padding: 60px 0;
-        }
-
-        .page-header {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-
-        .page-header h1 {
-            font-size: 2.5rem;
-            color: var(--text-dark);
-            margin-bottom: 1rem;
-        }
-
-        .page-header p {
-            font-size: 1.1rem;
-            color: var(--text-gray);
-        }
-
-        .content-section {
-            margin-bottom: 3rem;
-            padding: 2rem;
-            background: var(--background-light);
-            border-radius: 12px;
-        }
-
-        .content-section h2 {
-            font-size: 1.5rem;
-            color: var(--text-dark);
-            margin-bottom: 1rem;
-        }
-
-        .content-section h3 {
-            font-size: 1.25rem;
-            color: var(--text-dark);
-            margin: 1.5rem 0 1rem 0;
-        }
-
-        .content-section p {
-            margin-bottom: 1rem;
-            color: var(--text-gray);
-        }
-
-        .content-section ul {
-            margin-left: 2rem;
-            margin-bottom: 1rem;
-        }
-
-        .content-section li {
-            margin-bottom: 0.5rem;
-            color: var(--text-gray);
-        }
-
-        .highlight {
-            background: var(--secondary-color);
-            color: var(--white);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-weight: 500;
-        }
-
-        .warning-box {
-            background: #FEF2F2;
-            border: 2px solid #FCA5A5;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin: 2rem 0;
-        }
-
-        .warning-box h3 {
-            color: #DC2626;
-            margin-top: 0;
-        }
-
-        .warning-box p {
-            color: #7F1D1D;
-        }
-
-        /* Footer */
-        footer {
-            background: var(--text-dark);
-            color: var(--white);
-            padding: 40px 0;
-            text-align: center;
-            margin-top: 4rem;
-        }
-
-        .back-to-top {
-            background: var(--primary-color);
-            color: var(--white);
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            text-decoration: none;
-            display: inline-block;
-            margin-top: 2rem;
-            font-weight: 600;
-            transition: background 0.3s ease;
-        }
-
-        .back-to-top:hover {
-            background: var(--primary-dark);
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .nav-links {
-                display: none;
-            }
-            
-            .page-header h1 {
-                font-size: 2rem;
-            }
-            
-            .content-section {
-                padding: 1.5rem;
-            }
-        }
+/* RESPONSIVE */
+@media (max-width:768px){
+.wrap{padding:0 24px}
+nav{padding:0 24px}
+nav .links a:not(.btn-sm){display:none}
+.content{padding:100px 0 60px}
+h1{font-size:36px}
+h2{font-size:28px}
+.content-body h2{font-size:20px}
+.footer-links{flex-direction:column;gap:16px}
+}
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <header>
-        <nav class="container">
-            <a href="index.html" class="logo">PostDoseRx</a>
-            <ul class="nav-links">
-                <li><a href="index.html">Home</a></li>
-                <li><a href="privacy.html">Privacy</a></li>
-                <li><a href="terms.html">Terms</a></li>
-            </ul>
-        </nav>
-    </header>
+<nav>
+  <a href="/" class="logo">
+    <span class="logo-name">PostDose<span class="logo-rx">RX</span></span>
+    <span class="tagline">Meal planning built around your injection day</span>
+  </a>
+  <div class="links">
+    <a href="/">Home</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
+    <a href="/contact.html">Contact</a>
+    <a href="/#signup" class="btn-sm">Get Started</a>
+  </div>
+</nav>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="container">
-            <div class="page-header">
-                <h1>Terms of Service</h1>
-                <p>Last updated: <span class="highlight">March 1, 2026</span></p>
-                <p>Agreement for using PostDoseRx platform and services</p>
-            </div>
+<section class="content">
+  <div class="wrap">
+    <div class="content-header">
+      <div class="content-kicker">Legal</div>
+      <h1>Terms of Service</h1>
+      <div class="content-lede">Please read these terms carefully before using PostDoseRX. By accessing our service, you agree to be bound by these terms.</div>
+    </div>
+    
+    <div class="warning-box">
+      <h3>⚠️ Medical Disclaimer</h3>
+      <p><strong>PostDoseRX provides meal planning suggestions and general information only. We do not provide medical advice, diagnosis, or treatment. Always consult your healthcare provider before making changes to your medication regimen, diet, or health routine.</strong></p>
+    </div>
+    
+    <div class="content-body">
 
-            <div class="warning-box">
-                <h3>⚠️ Medical Disclaimer</h3>
-                <p><strong>PostDoseRx provides meal planning suggestions and general information only. We do not provide medical advice, diagnosis, or treatment. Always consult your healthcare provider before making changes to your medication regimen, diet, or health routine.</strong></p>
-            </div>
+      <p><strong>Last updated:</strong> January 2024</p>
+      
+      <h2>Acceptance of Terms</h2>
+      <p>By accessing or using PostDoseRX ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these terms, you may not access the Service.</p>
+      
+      <h2>Description of Service</h2>
+      <p>PostDoseRX is a meal planning and support platform specifically designed for people using GLP-1 medications (such as Ozempic, Wegovy, Mounjaro, and similar medications).</p>
+      
+      <h3>We Provide:</h3>
+      <ul>
+        <li>GLP-1-optimized meal plans and recipes</li>
+        <li>Side effect management guidance and tips</li>
+        <li>Progress tracking tools</li>
+        <li>Community support features</li>
+        <li>Educational content about GLP-1 medications</li>
+      </ul>
 
-            <div class="content-section">
-                <h2>Acceptance of Terms</h2>
-                <p>By accessing or using PostDoseRx ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these terms, you may not access the Service.</p>
-                
-                <p>These Terms apply to all visitors, users, and others who access or use the Service.</p>
-            </div>
+      <h3>We Do Not Provide:</h3>
+      <ul>
+        <li>Medical advice, diagnosis, or treatment</li>
+        <li>Prescription medication management</li>
+        <li>Emergency medical services</li>
+        <li>Individual medical consultations</li>
+      </ul>
+      
+      <h2>User Accounts and Responsibilities</h2>
+      <p>You must be at least 18 years old to use our service. You agree to provide accurate information and maintain the security of your account credentials.</p>
+      
+      <h3>Acceptable Use</h3>
+      <p>You agree to use PostDoseRX only for lawful purposes. You agree NOT to:</p>
+      <ul>
+        <li>Share medical advice or act as a healthcare provider</li>
+        <li>Post false or misleading health information</li>
+        <li>Share personal medical information of others</li>
+        <li>Use the service to promote competing products</li>
+        <li>Attempt to hack, disrupt, or damage the platform</li>
+      </ul>
+      
+      <h2>Subscription and Payments</h2>
+      <p>PostDoseRX offers various subscription tiers with different features. Pricing and features are clearly described at the time of purchase.</p>
+      
+      <ul>
+        <li>Subscriptions are billed in advance on a recurring basis</li>
+        <li>You can cancel your subscription anytime</li>
+        <li>Cancellation takes effect at the end of the current billing period</li>
+        <li>No partial refunds for unused portion of subscription period</li>
+      </ul>
+      
+      <h2>Health and Safety Disclaimers</h2>
+      <p><strong>PostDoseRX meal plans and suggestions are for informational purposes only.</strong> They are not intended to diagnose, treat, cure, or prevent any disease or medical condition.</p>
+      
+      <h3>Emergency Situations</h3>
+      <p>If you experience a medical emergency, call emergency services immediately. Do not rely on PostDoseRX for emergency medical guidance.</p>
+      
+      <h3>Medication Management</h3>
+      <p>Continue taking your GLP-1 medication as prescribed by your healthcare provider. Do not change your medication regimen based on our meal plans or suggestions.</p>
+      
+      <h2>Privacy and Data</h2>
+      <p>Your privacy is important to us. Our collection and use of personal information is governed by our Privacy Policy, which is incorporated into these Terms by reference.</p>
+      
+      <h2>Limitation of Liability</h2>
+      <p><strong>PostDoseRX is provided "AS IS" without warranties of any kind.</strong> To the maximum extent permitted by law, we disclaim all warranties, express or implied.</p>
+      
+      <p>We are not liable for health outcomes, medical complications, or decisions made based on our meal plans or content. Our total liability shall not exceed the amount you paid for the Service.</p>
+      
+      <h2>Termination</h2>
+      <p>You can stop using our Service anytime by cancelling your subscription and deleting your account. We may terminate access if you violate these Terms.</p>
+      
+      <h2>Changes to Terms</h2>
+      <p>We may update these Terms from time to time. We will notify you of any material changes by email or through our service.</p>
+      
+      <h2>Contact Us</h2>
+      <p>Questions about these Terms? Contact us:</p>
+      <ul>
+        <li>Email: legal@postdoserx.com</li>
+        <li>Address: [Your Business Address]</li>
+      </ul>
+      
+      <p><strong>Medical Disclaimer:</strong> PostDoseRX is not a medical service. Our meal planning suggestions are for informational purposes only and should not replace professional medical advice. Always consult with your healthcare provider regarding your GLP-1 medication and dietary needs.</p>
+    </div>
+  </div>
+</section>
 
-            <div class="content-section">
-                <h2>Description of Service</h2>
-                <p>PostDoseRx is a meal planning and support platform specifically designed for people using GLP-1 medications (such as Ozempic, Wegovy, Mounjaro, and similar medications).</p>
-                
-                <h3>We Provide:</h3>
-                <ul>
-                    <li>GLP-1-optimized meal plans and recipes</li>
-                    <li>Side effect management guidance and tips</li>
-                    <li>Progress tracking tools</li>
-                    <li>Community support features</li>
-                    <li>Educational content about GLP-1 medications</li>
-                </ul>
-
-                <h3>We Do Not Provide:</h3>
-                <ul>
-                    <li>Medical advice, diagnosis, or treatment</li>
-                    <li>Prescription medication management</li>
-                    <li>Emergency medical services</li>
-                    <li>Individual medical consultations</li>
-                </ul>
-            </div>
-
-            <div class="content-section">
-                <h2>User Accounts and Responsibilities</h2>
-                
-                <h3>Account Requirements</h3>
-                <ul>
-                    <li>You must be at least 18 years old</li>
-                    <li>Provide accurate and complete information</li>
-                    <li>Maintain the security of your account credentials</li>
-                    <li>Notify us immediately of any unauthorized use</li>
-                </ul>
-
-                <h3>Acceptable Use</h3>
-                <p>You agree to use PostDoseRx only for lawful purposes and in accordance with these Terms. You agree NOT to:</p>
-                <ul>
-                    <li>Share medical advice or act as a healthcare provider</li>
-                    <li>Post false or misleading health information</li>
-                    <li>Share personal medical information of others</li>
-                    <li>Use the service to promote competing products</li>
-                    <li>Attempt to hack, disrupt, or damage the platform</li>
-                    <li>Share your account with others</li>
-                </ul>
-            </div>
-
-            <div class="content-section">
-                <h2>Subscription and Payments</h2>
-                
-                <h3>Subscription Plans</h3>
-                <p>PostDoseRx offers various subscription tiers with different features. Pricing and features are clearly described at the time of purchase.</p>
-
-                <h3>Billing</h3>
-                <ul>
-                    <li>Subscriptions are billed in advance on a recurring basis</li>
-                    <li>Payment is due immediately upon subscription</li>
-                    <li>Prices may change with 30 days notice</li>
-                    <li>Failed payments may result in service suspension</li>
-                </ul>
-
-                <h3>Refunds and Cancellation</h3>
-                <ul>
-                    <li>You can cancel your subscription anytime</li>
-                    <li>Cancellation takes effect at the end of the current billing period</li>
-                    <li>No partial refunds for unused portion of subscription period</li>
-                    <li>Free trials can be cancelled anytime during the trial period</li>
-                </ul>
-            </div>
-
-            <div class="content-section">
-                <h2>Content and Intellectual Property</h2>
-                
-                <h3>Our Content</h3>
-                <p>All content provided by PostDoseRx (meal plans, recipes, articles, app features) is protected by copyright and other intellectual property laws. You may use this content for personal, non-commercial purposes only.</p>
-
-                <h3>User Content</h3>
-                <p>When you share content in our community features (comments, posts, progress updates), you grant us a license to use, modify, and display this content within the Service. You retain ownership of your content.</p>
-
-                <h3>Content Guidelines</h3>
-                <p>User-generated content must be:</p>
-                <ul>
-                    <li>Respectful and supportive of other users</li>
-                    <li>Focused on meal planning and GLP-1 journey experiences</li>
-                    <li>Free of medical advice or professional recommendations</li>
-                    <li>Non-promotional (no advertising other products/services)</li>
-                </ul>
-            </div>
-
-            <div class="content-section">
-                <h2>Health and Safety Disclaimers</h2>
-                
-                <div class="warning-box">
-                    <h3>No Medical Advice</h3>
-                    <p>PostDoseRx meal plans and suggestions are for informational purposes only. They are not intended to diagnose, treat, cure, or prevent any disease or medical condition.</p>
-                </div>
-
-                <h3>Emergency Situations</h3>
-                <p>If you experience a medical emergency, call emergency services immediately. Do not rely on PostDoseRx for emergency medical guidance.</p>
-
-                <h3>Individual Results May Vary</h3>
-                <p>Success stories and testimonials represent individual experiences. Your results may differ based on your specific health situation, medication response, and adherence to recommendations.</p>
-
-                <h3>Medication Management</h3>
-                <p>Continue taking your GLP-1 medication as prescribed by your healthcare provider. Do not change your medication regimen based on our meal plans or suggestions.</p>
-            </div>
-
-            <div class="content-section">
-                <h2>Privacy and Data</h2>
-                <p>Your privacy is important to us. Our collection and use of personal information is governed by our Privacy Policy, which is incorporated into these Terms by reference.</p>
-                
-                <p>By using PostDoseRx, you consent to the collection and use of information as described in our Privacy Policy.</p>
-            </div>
-
-            <div class="content-section">
-                <h2>Service Availability</h2>
-                <p>We strive to keep PostDoseRx available 24/7, but we cannot guarantee uninterrupted service. We may experience downtime for:</p>
-                
-                <ul>
-                    <li>Scheduled maintenance and updates</li>
-                    <li>Technical issues beyond our control</li>
-                    <li>Force majeure events</li>
-                </ul>
-
-                <p>We are not liable for temporary unavailability of the Service.</p>
-            </div>
-
-            <div class="content-section">
-                <h2>Limitation of Liability</h2>
-                <p><strong>PostDoseRx is provided "AS IS" without warranties of any kind.</strong> To the maximum extent permitted by law, we disclaim all warranties, express or implied.</p>
-                
-                <h3>We Are Not Liable For:</h3>
-                <ul>
-                    <li>Health outcomes or medical complications</li>
-                    <li>Decisions made based on our meal plans or content</li>
-                    <li>Interactions between food and medications</li>
-                    <li>Indirect, incidental, or consequential damages</li>
-                    <li>Loss of data or service interruptions</li>
-                </ul>
-
-                <p>Our total liability shall not exceed the amount you paid for the Service in the 12 months preceding the claim.</p>
-            </div>
-
-            <div class="content-section">
-                <h2>Indemnification</h2>
-                <p>You agree to indemnify and hold harmless PostDoseRx, its officers, directors, employees, and agents from any claims, losses, or damages arising from:</p>
-                
-                <ul>
-                    <li>Your use of the Service</li>
-                    <li>Your violation of these Terms</li>
-                    <li>Your violation of any third-party rights</li>
-                    <li>Content you post or share through the Service</li>
-                </ul>
-            </div>
-
-            <div class="content-section">
-                <h2>Termination</h2>
-                
-                <h3>You May Terminate</h3>
-                <p>You can stop using our Service anytime by cancelling your subscription and deleting your account.</p>
-
-                <h3>We May Terminate</h3>
-                <p>We may terminate or suspend your access immediately, without prior notice, if you:</p>
-                <ul>
-                    <li>Violate these Terms of Service</li>
-                    <li>Provide false information</li>
-                    <li>Engage in harmful or disruptive behavior</li>
-                    <li>Fail to pay subscription fees</li>
-                </ul>
-
-                <h3>Effect of Termination</h3>
-                <p>Upon termination, your right to use the Service ceases immediately. We may delete your account and data, though some information may be retained as required by law.</p>
-            </div>
-
-            <div class="content-section">
-                <h2>Changes to Terms</h2>
-                <p>We reserve the right to modify these Terms at any time. We will notify users of material changes via:</p>
-                
-                <ul>
-                    <li>Email notification</li>
-                    <li>In-app notification</li>
-                    <li>Updated "Last Modified" date</li>
-                </ul>
-
-                <p>Continued use of the Service after changes constitutes acceptance of the new Terms.</p>
-            </div>
-
-            <div class="content-section">
-                <h2>Governing Law</h2>
-                <p>These Terms are governed by the laws of [Your State/Country] without regard to conflict of law principles. Any disputes will be resolved in the courts of [Your Jurisdiction].</p>
-            </div>
-
-            <div class="content-section">
-                <h2>Contact Information</h2>
-                <p>Questions about these Terms? Contact us:</p>
-                
-                <ul>
-                    <li><strong>Email:</strong> legal@postdoserx.com</li>
-                    <li><strong>Mail:</strong> PostDoseRx Legal Team<br>
-                        [Your Business Address]<br>
-                        [City, State ZIP]</li>
-                    <li><strong>Response Time:</strong> We respond to legal inquiries within 5 business days</li>
-                </ul>
-            </div>
-
-            <div class="content-section">
-                <h2>Severability</h2>
-                <p>If any provision of these Terms is held to be invalid or unenforceable, the remaining provisions will remain in full force and effect.</p>
-            </div>
-
-            <a href="index.html" class="back-to-top">← Back to PostDoseRx</a>
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 PostDoseRx. All rights reserved.</p>
-            <p>Not medical advice - always consult your healthcare provider.</p>
-        </div>
-    </footer>
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/terms.html">Terms of Service</a>
+      <a href="/contact.html">Contact</a>
+    </div>
+    <div class="footer-copy">
+      © 2024 PostDoseRX. All rights reserved.
+    </div>
+  </div>
+</footer>
 </body>
 </html>
