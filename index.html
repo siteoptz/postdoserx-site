@@ -1703,7 +1703,7 @@ async function checkExistingUser(email) {
   const GHL_API_KEY = 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
   const GHL_LOCATION_ID = 'ECu5ScdYFmB0WnhvYoBU';
   
-  const url = `${GHL_API_BASE}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
+  const url = `${GHL_API_BASE}/contacts/?locationId=${GHL_LOCATION_ID}&limit=100`;
   
   try {
     console.log('🔍 Searching for user in GHL:', email);
@@ -1722,17 +1722,24 @@ async function checkExistingUser(email) {
     }
 
     const data = await response.json();
-    console.log('📋 GHL search data:', data);
+    console.log('📋 GHL search data - total contacts:', data.contacts?.length || 0);
     
-    if (data.contacts && data.contacts.length > 0) {
-      const contact = data.contacts[0];
+    // Search for the specific email in the contacts array
+    const contact = data.contacts?.find(contact => 
+      contact.email && contact.email.toLowerCase() === email.toLowerCase()
+    );
+    
+    if (contact) {
       const tags = contact.tags || [];
+      console.log('✅ Found existing user:', contact.email);
       console.log('🏷️ User tags:', tags);
       
       // More comprehensive tier detection
       let tier = 'trial'; // default
       if (tags.some(tag => tag.includes('premium') || tag.includes('postdoserx-premium'))) {
         tier = 'premium';
+      } else if (tags.some(tag => tag.includes('trial') || tag.includes('postdoserx-trial'))) {
+        tier = 'trial';
       }
       
       console.log(`✅ Existing user found with tier: ${tier}`);
@@ -1747,8 +1754,10 @@ async function checkExistingUser(email) {
       return { exists: false };
     }
   } catch (error) {
-    console.error('Error checking existing user:', error);
+    console.error('❌ Error checking existing user:', error);
     // On error, assume user doesn't exist and proceed with signup
+    // This is a fallback to avoid blocking legitimate signups if GHL API fails
+    console.warn('⚠️ GHL API error - defaulting to allow signup');
     return { exists: false };
   }
 }
