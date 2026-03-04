@@ -50,6 +50,9 @@ nav .links a:hover{color:var(--navy)}
 .hero h1{margin-bottom:28px}
 .hero-lede{font-size:16px;line-height:1.72;color:var(--text-sec);margin-bottom:36px;max-width:500px}
 .hero-lede strong{color:var(--navy);font-weight:700}
+.hero-cta{margin-bottom:24px}
+.hero-btn{padding:16px 32px;background:linear-gradient(135deg,var(--teal),var(--navy));color:var(--white);border:none;border-radius:12px;font-size:18px;font-weight:700;cursor:pointer;transition:all .3s ease;box-shadow:0 8px 24px rgba(20,184,166,.2)}
+.hero-btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(20,184,166,.3)}
 .hero-form{display:flex;max-width:420px}
 .hero-form input{flex:1;padding:13px 14px;border:1px solid var(--border);border-right:none;background:var(--white);font-family:inherit;font-size:14px;color:var(--text);outline:none;transition:border-color .15s;border-radius:8px 0 0 8px}
 .hero-form input::placeholder{color:var(--text-muted)}
@@ -405,11 +408,10 @@ footer .f-links a:hover{color:var(--navy)}
       <div class="hero-kicker">For Ozempic, Wegovy, Mounjaro &amp; Zepbound</div>
       <h1>Meal planning built<br>around your <em>injection day.</em></h1>
       <p class="hero-lede">The first week on Ozempic, food becomes a stranger. Nothing sounds good. Everything sounds like it might come back up. <strong>Thirty million people cycling through the same unpredictable appetite with no guidance.</strong> The medication came with a prescription, but no eating plan.</p>
-      <form class="hero-form" onsubmit="event.preventDefault();send(this)">
-        <input type="email" placeholder="Email address" required>
-        <button type="submit">Get free 7-day plan</button>
-      </form>
-      <p class="hero-note">Free meal plan + side effect guide. No card required.</p>
+      <div class="hero-cta">
+        <button class="hero-btn" onclick="openSignupModal()">Get Started Free</button>
+        <p class="hero-note">Choose your plan • Trial or Premium • No card required for trial</p>
+      </div>
     </div>
     <div class="sched">
       <div class="sched-head">
@@ -649,8 +651,8 @@ footer .f-links a:hover{color:var(--navy)}
     <h2>$12/month is invisible next to your medication cost.</h2>
     <p class="pricing-sub">Start with a trial. Stay because it works.</p>
     <div class="pricing-grid">
-      <div class="p-card"><p class="p-tier">Trial</p><div class="p-price">$9.99</div><span class="p-period">per month, introductory</span><p class="p-desc">Basic meal plans synced to your injection schedule.</p><ul class="p-list"><li>Dose-day synchronized meals</li><li>Weekly grocery lists</li><li>Side effect food guide</li><li>Basic symptom logger</li></ul><button class="p-btn p-btn-o" onclick="openSignupModal('Trial', 'price_1SrSZbAYjb6yVLnRHNOJVKy2')">Start trial</button></div>
-      <div class="p-card p-feat"><p class="p-tier">NourishRx Premium</p><div class="p-price">$10</div><span class="p-period">per month</span><p class="p-desc">The full engine. Learns your patterns, adapts every week.</p><ul class="p-list"><li>Everything in Trial</li><li>Adaptive recipe engine</li><li>Meal rating feedback loop</li><li>Symptom-to-food matching</li><li>Community access</li><li>Progress tracking</li></ul><button class="p-btn p-btn-f" onclick="openSignupModal('Premium', 'price_1SrSYIAYjb6yVLnRYPJTOU5A')">Start premium</button></div>
+      <div class="p-card"><p class="p-tier">Trial</p><div class="p-price">Free</div><span class="p-period">7 days</span><p class="p-desc">Basic meal plans synced to your injection schedule.</p><ul class="p-list"><li>Dose-day synchronized meals</li><li>Weekly grocery lists</li><li>Side effect food guide</li><li>Basic symptom logger</li></ul><button class="p-btn p-btn-o" onclick="openSignupModal()">Start Free Trial</button></div>
+      <div class="p-card p-feat"><p class="p-tier">Premium</p><div class="p-price">$29</div><span class="p-period">per month</span><p class="p-desc">The full engine. Learns your patterns, adapts every week.</p><ul class="p-list"><li>Everything in Trial</li><li>AI-powered adaptive recipes</li><li>Meal rating feedback loop</li><li>Symptom-to-food matching</li><li>Community access</li><li>Progress tracking</li></ul><button class="p-btn p-btn-f" onclick="openSignupModal()">Get Premium Access</button></div>
       <div class="p-card"><p class="p-tier">Clinic</p><div class="p-price">Custom</div><span class="p-period">per patient, billed to practice</span><p class="p-desc">For prescribing clinics. Hand patients a plan with every script.</p><ul class="p-list"><li>Everything in Premium</li><li>Provider dashboard</li><li>Patient onboarding flow</li><li>Aggregate compliance data</li><li>White-label option</li></ul><button class="p-btn p-btn-o" onclick="openModal('contact')">Contact sales</button></div>
     </div>
   </div>
@@ -1140,41 +1142,125 @@ function startStripeCheckout(priceId, buttonElement) {
 <div id="signup-modal" class="modal" style="display:none;">
   <div class="modal-overlay" onclick="closeSignupModal()"></div>
   <div class="modal-content signup-modal-content">
-    <div class="modal-header">
-      <h2 class="signup-title">Almost there!</h2>
-      <p class="signup-subtitle">Just need your email to get started with <span id="selected-plan">Premium</span></p>
-      <button class="modal-close" onclick="closeSignupModal()">×</button>
+    <!-- STEP 1: Plan Selection -->
+    <div id="plan-selection-step" class="signup-step">
+      <div class="modal-header">
+        <h2 class="signup-title">Choose Your Plan</h2>
+        <p class="signup-subtitle">Start your GLP-1 nutrition journey with the perfect plan for you</p>
+        <button class="modal-close" onclick="closeSignupModal()">×</button>
+      </div>
+
+      <div class="plans-container">
+        <!-- Trial Plan -->
+        <div class="plan-card" data-plan="trial" onclick="selectPlan('trial')">
+          <div class="plan-header">
+            <h3 class="plan-title">Trial</h3>
+            <div class="plan-price">
+              <span class="price-amount">Free</span>
+              <span class="price-period">7 days</span>
+            </div>
+          </div>
+          <div class="plan-features">
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>Dose-day synchronized meals</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>Weekly grocery lists</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>Side effect food guide</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>Basic symptom logger</span>
+            </div>
+          </div>
+          <button class="plan-select-btn">Start Free Trial</button>
+        </div>
+
+        <!-- Premium Plan -->
+        <div class="plan-card plan-recommended" data-plan="premium" onclick="selectPlan('premium')">
+          <div class="plan-badge">Most Popular</div>
+          <div class="plan-header">
+            <h3 class="plan-title">Premium</h3>
+            <div class="plan-price">
+              <span class="price-amount">$29</span>
+              <span class="price-period">/ month</span>
+            </div>
+          </div>
+          <div class="plan-features">
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>Everything in Trial</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>AI-powered adaptive recipes</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>Meal rating feedback loop</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>Symptom-to-food matching</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>Progress tracking & insights</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">✓</span>
+              <span>Community access</span>
+            </div>
+          </div>
+          <button class="plan-select-btn">Get Premium Access</button>
+        </div>
+      </div>
     </div>
 
-    <div id="signup-message-container"></div>
-
-    <form id="quick-signup-form" class="signup-form">
-      <div class="form-group">
-        <label for="signup-email" class="form-label">Email Address</label>
-        <input type="email" id="signup-email" name="email" class="form-input" placeholder="your.email@example.com" required>
+    <!-- STEP 2: User Details -->
+    <div id="user-details-step" class="signup-step" style="display:none;">
+      <div class="modal-header">
+        <button class="back-btn" onclick="goBackToPlanSelection()">← Back</button>
+        <h2 class="signup-title">Almost there!</h2>
+        <p class="signup-subtitle">Just need your details to get started with <span id="selected-plan-name">Premium</span></p>
+        <button class="modal-close" onclick="closeSignupModal()">×</button>
       </div>
 
-      <div class="form-group">
-        <label for="signup-name" class="form-label">Name (Optional)</label>
-        <input type="text" id="signup-name" name="name" class="form-input" placeholder="Your name">
-      </div>
+      <div id="signup-message-container"></div>
 
-      <button type="submit" class="form-submit" id="signup-submit">
-        Continue to Secure Checkout
-      </button>
+      <form id="quick-signup-form" class="signup-form">
+        <div class="form-group">
+          <label for="signup-email" class="form-label">Email Address</label>
+          <input type="email" id="signup-email" name="email" class="form-input" placeholder="your.email@example.com" required>
+        </div>
 
-      <p class="signup-disclaimer">
-        After payment, we'll send setup instructions to your email. No account creation needed yet!
-      </p>
-    </form>
+        <div class="form-group">
+          <label for="signup-name" class="form-label">Name (Optional)</label>
+          <input type="text" id="signup-name" name="name" class="form-input" placeholder="Your name">
+        </div>
 
-    <div class="oauth-section">
-      <div class="auth-divider">
-        <span>or</span>
-      </div>
-      
-      <div class="oauth-notice" style="background:var(--teal-light);border:1px solid var(--teal);border-radius:8px;padding:12px;text-align:center;font-size:12px;color:var(--teal-dark)">
-        <strong>🔄 Google Sign-In:</strong> Available after initial setup is complete
+        <button type="submit" class="form-submit" id="signup-submit">
+          <span id="submit-btn-text">Continue to Secure Checkout</span>
+        </button>
+
+        <p class="signup-disclaimer" id="signup-disclaimer-text">
+          After payment, we'll send setup instructions to your email. No account creation needed yet!
+        </p>
+      </form>
+
+      <div class="oauth-section">
+        <div class="auth-divider">
+          <span>or</span>
+        </div>
+        
+        <div class="oauth-notice" style="background:var(--teal-light);border:1px solid var(--teal);border-radius:8px;padding:12px;text-align:center;font-size:12px;color:var(--teal-dark)">
+          <strong>🔄 Google Sign-In:</strong> Available after initial setup is complete
+        </div>
       </div>
     </div>
   </div>
@@ -1209,8 +1295,8 @@ function startStripeCheckout(priceId, buttonElement) {
   background: var(--white);
   border-radius: 16px;
   padding: 32px;
-  max-width: 480px;
-  width: 90%;
+  max-width: 900px;
+  width: 95%;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(27, 42, 74, 0.15);
@@ -1364,6 +1450,180 @@ function startStripeCheckout(priceId, buttonElement) {
   border: 1px solid rgba(40, 167, 69, .2);
 }
 
+/* Plan Selection Styles */
+.plans-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.plan-card {
+  border: 2px solid var(--slate-light);
+  border-radius: 12px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  background: var(--white);
+  text-align: center;
+}
+
+.plan-card:hover {
+  border-color: var(--teal);
+  box-shadow: 0 8px 24px rgba(20, 184, 166, 0.15);
+  transform: translateY(-2px);
+}
+
+.plan-card.selected {
+  border-color: var(--teal);
+  background: linear-gradient(135deg, var(--teal-light), var(--white));
+}
+
+.plan-recommended {
+  border-color: var(--teal);
+  position: relative;
+}
+
+.plan-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--teal), var(--navy));
+  color: var(--white);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.plan-header {
+  margin-bottom: 20px;
+}
+
+.plan-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 24px;
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+
+.price-amount {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--teal);
+}
+
+.price-period {
+  font-size: 14px;
+  color: var(--text-sec);
+}
+
+.plan-features {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--text-pri);
+}
+
+.feature-icon {
+  width: 20px;
+  height: 20px;
+  background: var(--teal);
+  color: var(--white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.plan-select-btn {
+  width: 100%;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--teal), var(--navy));
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.plan-select-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
+}
+
+.plan-card[data-plan="trial"] .plan-select-btn {
+  background: linear-gradient(135deg, var(--slate), var(--navy));
+}
+
+/* Step Navigation */
+.signup-step {
+  animation: slideIn 0.3s ease-out;
+}
+
+.back-btn {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: var(--teal-light);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .plans-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .signup-modal-content {
+    max-width: 500px;
+  }
+}
+
 @media (max-width: 480px) {
   .signup-modal-content {
     padding: 24px;
@@ -1373,6 +1633,14 @@ function startStripeCheckout(priceId, buttonElement) {
   .signup-title {
     font-size: 24px;
   }
+  
+  .plan-title {
+    font-size: 20px;
+  }
+  
+  .price-amount {
+    font-size: 28px;
+  }
 }
 </style>
 
@@ -1380,13 +1648,19 @@ function startStripeCheckout(priceId, buttonElement) {
 let selectedPlan = null;
 let selectedPriceId = null;
 
-function openSignupModal(planName, priceId) {
-  selectedPlan = planName;
-  selectedPriceId = priceId;
+// New plan selection functions
+function openSignupModal(planName = null, priceId = null) {
+  // Reset to plan selection step
+  document.getElementById('plan-selection-step').style.display = 'block';
+  document.getElementById('user-details-step').style.display = 'none';
   
-  document.getElementById('selected-plan').textContent = planName;
+  // If plan was pre-selected (from old links), auto-select it
+  if (planName && priceId) {
+    const tierName = planName.toLowerCase().includes('trial') ? 'trial' : 'premium';
+    setTimeout(() => selectPlan(tierName), 100);
+  }
+  
   document.getElementById('signup-modal').style.display = 'flex';
-  document.getElementById('signup-email').focus();
   
   // Pre-fill email if available from URL params
   const urlParams = new URLSearchParams(window.location.search);
@@ -1399,6 +1673,58 @@ function openSignupModal(planName, priceId) {
   if (name) {
     document.getElementById('signup-name').value = name;
   }
+}
+
+function selectPlan(planType) {
+  // Remove selected class from all cards
+  document.querySelectorAll('.plan-card').forEach(card => {
+    card.classList.remove('selected');
+  });
+  
+  // Add selected class to chosen card
+  const selectedCard = document.querySelector(`[data-plan="${planType}"]`);
+  selectedCard.classList.add('selected');
+  
+  // Store plan selection
+  selectedPlan = planType === 'trial' ? 'Trial' : 'Premium';
+  
+  // Set price IDs
+  if (planType === 'trial') {
+    selectedPriceId = null; // Trial is free
+  } else {
+    selectedPriceId = 'price_1SrSYIAYjb6yVLnRYPJTOU5A'; // Premium price ID
+  }
+  
+  console.log('🎯 Plan selected:', selectedPlan);
+  
+  // Show step 2 after short delay for better UX
+  setTimeout(() => {
+    document.getElementById('plan-selection-step').style.display = 'none';
+    document.getElementById('user-details-step').style.display = 'block';
+    
+    // Update the plan name in step 2
+    document.getElementById('selected-plan-name').textContent = selectedPlan;
+    
+    // Update button text and disclaimer based on plan
+    const submitBtn = document.getElementById('submit-btn-text');
+    const disclaimer = document.getElementById('signup-disclaimer-text');
+    
+    if (planType === 'trial') {
+      submitBtn.textContent = 'Start Free Trial';
+      disclaimer.textContent = 'Get instant access to your 7-day trial. No payment required!';
+    } else {
+      submitBtn.textContent = 'Continue to Secure Checkout';
+      disclaimer.textContent = 'After payment, we\'ll send setup instructions to your email. No account creation needed yet!';
+    }
+    
+    // Focus email input
+    document.getElementById('signup-email').focus();
+  }, 300);
+}
+
+function goBackToPlanSelection() {
+  document.getElementById('user-details-step').style.display = 'none';
+  document.getElementById('plan-selection-step').style.display = 'block';
 }
 
 function closeSignupModal() {
@@ -1666,16 +1992,26 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
     
     localStorage.setItem('postdoserx_signup_data', JSON.stringify(userData));
     
-    // Show success message
-    showSignupMessage(`Account created! Redirecting to secure checkout for ${selectedPlan}...`, 'success');
-    
-    setTimeout(() => {
-      // Close modal and proceed to Stripe checkout
-      closeSignupModal();
+    // Handle different flows for trial vs premium
+    if (tier === 'trial') {
+      // Trial users get immediate access to dashboard
+      showSignupMessage(`🎉 Welcome to your free trial! Redirecting to your dashboard...`, 'success');
       
-      // Use the existing Stripe checkout with user email pre-filled
-      initiateStripeCheckout(selectedPriceId, email, name, tier);
-    }, 1500);
+      setTimeout(() => {
+        closeSignupModal();
+        // Redirect to dashboard with trial access
+        window.location.href = `https://app.postdoserx.com?tier=trial&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name || '')}`;
+      }, 2000);
+    } else {
+      // Premium users go to Stripe checkout
+      showSignupMessage(`Account created! Redirecting to secure checkout for ${selectedPlan}...`, 'success');
+      
+      setTimeout(() => {
+        closeSignupModal();
+        // Use the existing Stripe checkout with user email pre-filled
+        initiateStripeCheckout(selectedPriceId, email, name, tier);
+      }, 1500);
+    }
     
   } catch (error) {
     console.error('Signup process error:', error);
