@@ -182,7 +182,10 @@ async function handleGoogleSignIn(response) {
     } else if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
       // Existing customer with valid subscription
       const authToken = generateAuthToken(email, googleId);
-      redirectToDashboard(authToken, email, name);
+      showMessage(`Welcome back! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
+      setTimeout(() => {
+        redirectToDashboardWithTier(authToken, email, customerStatus.tier, name);
+      }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
       // New customer or no subscription - redirect to signup
       showMessage('Welcome! Please complete your PostDoseRX Premium subscription first.', 'success');
@@ -192,7 +195,9 @@ async function handleGoogleSignIn(response) {
     } else {
       showMessage('Authentication successful! Please check your subscription status.', 'success');
       const authToken = generateAuthToken(email, googleId);
-      redirectToDashboard(authToken, email, name);
+      setTimeout(() => {
+        redirectToDashboardWithTier(authToken, email, customerStatus.tier, name);
+      }, 1500);
     }
     
   } catch (error) {
@@ -243,37 +248,56 @@ async function verifyGHLCustomer(email, isSignup = false) {
       }
     }
     
-    // Method 1: Check via GoHighLevel API endpoint
+    // Method 1: Direct GoHighLevel API check
     if (!IS_DEMO_MODE) {
       try {
-        const response = await fetch('/api/ghl-integration', {
-          method: 'POST',
+        console.log('🔍 Checking user in GHL via direct API:', email);
+        
+        const GHL_API_BASE = 'https://services.leadconnectorhq.com';
+        const GHL_API_KEY = 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
+        const GHL_LOCATION_ID = 'ECu5ScdYFmB0WnhvYoBU';
+        
+        const response = await fetch(`${GHL_API_BASE}/contacts/?locationId=${GHL_LOCATION_ID}&limit=100`, {
           headers: {
+            'Authorization': `Bearer ${GHL_API_KEY}`,
             'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            action: 'validate_tier',
-            email: email
-          })
+            'Version': '2021-07-28'
+          }
         });
         
         if (response.ok) {
-          const ghlData = await response.json();
-          console.log('GHL verification result:', ghlData);
+          const data = await response.json();
+          console.log('📋 GHL direct API - total contacts:', data.contacts?.length || 0);
           
-          if (ghlData.success) {
-            const isPremium = ghlData.tier === 'premium';
-            const isTrial = ghlData.tier === 'trial';
+          // Search for the specific email in the contacts array
+          const contact = data.contacts?.find(contact => 
+            contact.email && contact.email.toLowerCase() === email.toLowerCase()
+          );
+          
+          if (contact) {
+            const tags = contact.tags || [];
+            console.log('✅ Found user in GHL:', contact.email);
+            console.log('🏷️ User tags:', tags);
+            
+            // Determine tier from tags
+            let tier = 'trial'; // default
+            if (tags.some(tag => tag.includes('premium') || tag.includes('postdoserx-premium'))) {
+              tier = 'premium';
+            } else if (tags.some(tag => tag.includes('trial') || tag.includes('postdoserx-trial'))) {
+              tier = 'trial';
+            }
+            
+            console.log(`✅ User tier determined: ${tier}`);
             
             return {
               isValidCustomer: true,
               isNewCustomer: false,
-              needsSubscription: !isPremium && !isTrial,
-              tier: ghlData.tier,
-              ghlData: ghlData
+              needsSubscription: false, // They have an account, no need for subscription signup
+              tier: tier,
+              ghlData: { tier: tier, tags: tags, contact: contact }
             };
           } else {
-            // User not found in GHL, treat as new customer
+            console.log('👤 User not found in GHL');
             return {
               isValidCustomer: false,
               isNewCustomer: true,
@@ -283,10 +307,10 @@ async function verifyGHLCustomer(email, isSignup = false) {
             };
           }
         } else {
-          console.log('GHL API response not ok:', response.status, 'Falling back to demo mode');
+          console.log('GHL direct API response not ok:', response.status, 'Falling back');
         }
       } catch (apiError) {
-        console.log('GHL verification failed, using fallback:', apiError.message);
+        console.log('GHL direct API failed:', apiError.message);
       }
     }
     
@@ -344,7 +368,10 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
       // Existing customer with valid subscription
       const authToken = generateAuthToken(email, 'email_login');
-      redirectToDashboard(authToken, email);
+      showMessage(`Welcome back! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
+      setTimeout(() => {
+        redirectToDashboardWithTier(authToken, email, customerStatus.tier);
+      }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
       // New customer or no subscription - redirect to signup
       showMessage('No active subscription found. Redirecting to sign up...', 'success');
@@ -354,7 +381,9 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     } else {
       showMessage('Email verified! Redirecting to dashboard...', 'success');
       const authToken = generateAuthToken(email, 'email_login');
-      redirectToDashboard(authToken, email);
+      setTimeout(() => {
+        redirectToDashboardWithTier(authToken, email, customerStatus.tier);
+      }, 1500);
     }
     
   } catch (error) {
@@ -406,6 +435,21 @@ function redirectToDashboard(authToken, email, name = null) {
     dashboardUrl += `&name=${encodeURIComponent(name)}`;
   }
   
+  window.location.href = dashboardUrl;
+}
+
+function redirectToDashboardWithTier(authToken, email, tier = 'trial', name = null) {
+  const urlParams = new URLSearchParams(window.location.search);
+  // Use app.postdoserx.com - the official dashboard URL
+  const redirectUrl = urlParams.get('redirect') || 'https://app.postdoserx.com';
+  
+  // Include tier parameter for proper dashboard setup
+  let dashboardUrl = `${redirectUrl}?tier=${tier}&email=${encodeURIComponent(email)}&token=${authToken}`;
+  if (name) {
+    dashboardUrl += `&name=${encodeURIComponent(name)}`;
+  }
+  
+  console.log('🚀 Redirecting to dashboard:', dashboardUrl);
   window.location.href = dashboardUrl;
 }
 
