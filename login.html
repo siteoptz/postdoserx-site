@@ -281,9 +281,9 @@ async function verifyGHLCustomer(email, isSignup = false) {
             console.log('✅ Found user in GHL:', contact.email);
             console.log('🏷️ User tags:', tags);
             
-            // Extract user name from contact
-            const firstName = contact.firstName || '';
-            const lastName = contact.lastName || '';
+            // Extract user name from contact - properly capitalize
+            const firstName = contact.firstName ? contact.firstName.charAt(0).toUpperCase() + contact.firstName.slice(1).toLowerCase() : '';
+            const lastName = contact.lastName ? contact.lastName.charAt(0).toUpperCase() + contact.lastName.slice(1).toLowerCase() : '';
             const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
                            firstName ? firstName : 
                            lastName ? lastName : 
