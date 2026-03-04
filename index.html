@@ -1771,38 +1771,46 @@ function selectPlan(planType) {
   // Store plan selection
   selectedPlan = planType === 'trial' ? 'Trial' : 'Premium';
   
-  // Set price IDs
-  if (planType === 'trial') {
-    selectedPriceId = null; // Trial is free
-  } else {
-    selectedPriceId = 'price_1SrSYIAYjb6yVLnRYPJTOU5A'; // Premium price ID
-  }
-  
   console.log('🎯 Plan selected:', selectedPlan);
   
-  // Show step 2 after short delay for better UX
-  setTimeout(() => {
-    document.getElementById('plan-selection-step').style.display = 'none';
-    document.getElementById('user-details-step').style.display = 'block';
+  if (planType === 'premium') {
+    // Premium users: Redirect to Stripe checkout immediately
+    console.log('💳 Premium selected - redirecting to Stripe checkout');
     
-    // Update the plan name in step 2
-    document.getElementById('selected-plan-name').textContent = selectedPlan;
+    // Show loading message
+    const planCard = document.querySelector('[data-plan="premium"]');
+    planCard.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <div style="color: #007bff; margin-bottom: 10px;">Redirecting to secure checkout...</div>
+        <div style="font-size: 14px; color: #666;">You'll be able to set up your account after payment</div>
+      </div>
+    `;
     
-    // Update button text and disclaimer based on plan
-    const submitBtn = document.getElementById('submit-btn-text');
-    const disclaimer = document.getElementById('signup-disclaimer-text');
+    // Redirect to Stripe checkout
+    setTimeout(() => {
+      window.location.href = 'https://buy.stripe.com/3cI5kCeu224R3c11jd63K01';
+    }, 1500);
     
-    if (planType === 'trial') {
+  } else {
+    // Trial users: Continue to user details step
+    setTimeout(() => {
+      document.getElementById('plan-selection-step').style.display = 'none';
+      document.getElementById('user-details-step').style.display = 'block';
+      
+      // Update the plan name in step 2
+      document.getElementById('selected-plan-name').textContent = selectedPlan;
+      
+      // Update button text and disclaimer for trial
+      const submitBtn = document.getElementById('submit-btn-text');
+      const disclaimer = document.getElementById('signup-disclaimer-text');
+      
       submitBtn.textContent = 'Start Free Trial';
       disclaimer.textContent = 'Get instant access to your 7-day trial. No payment required!';
-    } else {
-      submitBtn.textContent = 'Continue to Secure Checkout';
-      disclaimer.textContent = 'After payment, we\'ll send setup instructions to your email. No account creation needed yet!';
-    }
-    
-    // Focus email input
-    document.getElementById('signup-email').focus();
-  }, 300);
+      
+      // Focus email input
+      document.getElementById('signup-email').focus();
+    }, 300);
+  }
 }
 
 function goBackToPlanSelection() {
@@ -2043,18 +2051,28 @@ document.getElementById('email-check-form').addEventListener('submit', async fun
     const userCheck = await checkExistingUser(email);
     
     if (userCheck.exists) {
-      // Existing user - redirect directly to dashboard
+      // Existing user found
       console.log('✅ Existing user found:', userCheck.contact);
-      showEmailCheckMessage(`Welcome back! Redirecting to your ${userCheck.tier} dashboard...`, 'success');
       
-      // Copy email to signup form in case they want to change plans
-      document.getElementById('signup-email').value = email;
-      
-      setTimeout(() => {
-        closeSignupModal();
-        // Redirect to dashboard with their tier
-        window.location.href = `https://app.postdoserx.com?tier=${userCheck.tier}&email=${encodeURIComponent(email)}`;
-      }, 2000);
+      if (userCheck.tier === 'premium') {
+        // Premium user - always redirect to dashboard, no downgrade allowed
+        showEmailCheckMessage('You already have a Premium account! Redirecting to your dashboard...', 'success');
+        
+        setTimeout(() => {
+          closeSignupModal();
+          // Always redirect premium users to their dashboard
+          window.location.href = `https://app.postdoserx.com?tier=premium&email=${encodeURIComponent(email)}`;
+        }, 2000);
+      } else {
+        // Trial user - allow upgrade but redirect to sign in for existing account
+        showEmailCheckMessage('You already have an account! Redirecting you to sign in...', 'info');
+        
+        setTimeout(() => {
+          closeSignupModal();
+          // Redirect to login page, not dashboard directly
+          window.location.href = `login.html?email=${encodeURIComponent(email)}&message=existing-user`;
+        }, 2000);
+      }
     } else {
       // New user - proceed to plan selection
       console.log('👤 New user - proceed to signup');
