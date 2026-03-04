@@ -1450,7 +1450,12 @@ async function createGHLContactDirect(email, name, tier) {
     ]
   };
 
+  console.log('🔄 Starting GHL contact creation...');
+  console.log('📋 Contact data:', contactData);
+  console.log('🌐 API URL:', url);
+
   try {
+    console.log('📞 Making fetch request to GHL API...');
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -1461,13 +1466,17 @@ async function createGHLContactDirect(email, name, tier) {
       body: JSON.stringify(contactData)
     });
 
+    console.log('📨 GHL API Response status:', response.status);
+    console.log('📨 GHL API Response headers:', response.headers);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('❌ GHL API Error Response:', errorText);
       throw new Error(`GHL API Error: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('GHL contact created successfully:', result);
+    console.log('✅ GHL contact created successfully:', result);
     
     return {
       success: true,
@@ -1475,7 +1484,12 @@ async function createGHLContactDirect(email, name, tier) {
       message: `Contact created with ${tier} tier`
     };
   } catch (error) {
-    console.error('Direct GHL API call failed:', error);
+    console.error('❌ Direct GHL API call failed:', error);
+    console.error('❌ Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     throw error;
   }
 }
@@ -1549,6 +1563,12 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
     const tier = selectedPlan.toLowerCase().includes('trial') ? 'trial' : 
                 selectedPlan.toLowerCase().includes('premium') ? 'premium' : 'trial';
     
+    console.log('🚀 Starting signup process...');
+    console.log('📧 Email:', email);
+    console.log('👤 Name:', name);
+    console.log('🎯 Tier:', tier);
+    console.log('📦 Selected Plan:', selectedPlan);
+    
     // Create contact in GoHighLevel using direct API call
     showSignupMessage('Setting up your account...', 'info');
     
@@ -1556,12 +1576,16 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
     
     try {
       // Try direct GHL API call first
+      console.log('🔄 Attempting direct GHL contact creation...');
       ghlData = await createGHLContactDirect(email, name, tier);
-      console.log('Direct GHL contact creation result:', ghlData);
+      console.log('✅ Direct GHL contact creation result:', ghlData);
     } catch (error) {
-      console.warn('Direct GHL API call failed:', error.message);
+      console.warn('❌ Direct GHL API call failed:', error.message);
+      console.error('❌ Full error object:', error);
       // Fallback: Use email notification method
+      console.log('🔄 Attempting fallback method...');
       ghlData = await createGHLContactFallback(email, name, tier);
+      console.log('📧 Fallback result:', ghlData);
     }
     
     if (!ghlData.success) {
