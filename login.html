@@ -182,9 +182,10 @@ async function handleGoogleSignIn(response) {
     } else if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
       // Existing customer with valid subscription
       const authToken = generateAuthToken(email, googleId);
-      showMessage(`Welcome back! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
+      const customerName = customerStatus.name || name || email.split('@')[0];
+      showMessage(`Welcome back, ${customerName}! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
       setTimeout(() => {
-        redirectToDashboardWithTier(authToken, email, customerStatus.tier, name);
+        redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
       // New customer or no subscription - redirect to signup
@@ -193,10 +194,11 @@ async function handleGoogleSignIn(response) {
         window.location.href = '/#signup?email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(name || '');
       }, 2000);
     } else {
-      showMessage('Authentication successful! Please check your subscription status.', 'success');
       const authToken = generateAuthToken(email, googleId);
+      const customerName = customerStatus.name || name || email.split('@')[0];
+      showMessage(`Welcome back, ${customerName}! Authentication successful!`, 'success');
       setTimeout(() => {
-        redirectToDashboardWithTier(authToken, email, customerStatus.tier, name);
+        redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     }
     
@@ -279,6 +281,16 @@ async function verifyGHLCustomer(email, isSignup = false) {
             console.log('✅ Found user in GHL:', contact.email);
             console.log('🏷️ User tags:', tags);
             
+            // Extract user name from contact
+            const firstName = contact.firstName || '';
+            const lastName = contact.lastName || '';
+            const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
+                           firstName ? firstName : 
+                           lastName ? lastName : 
+                           contact.email.split('@')[0]; // Fallback to email username
+            
+            console.log('👤 User name:', fullName);
+            
             // Determine tier from tags
             let tier = 'trial'; // default
             if (tags.some(tag => tag.includes('premium') || tag.includes('postdoserx-premium'))) {
@@ -294,6 +306,7 @@ async function verifyGHLCustomer(email, isSignup = false) {
               isNewCustomer: false,
               needsSubscription: false, // They have an account, no need for subscription signup
               tier: tier,
+              name: fullName,
               ghlData: { tier: tier, tags: tags, contact: contact }
             };
           } else {
@@ -368,9 +381,10 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
       // Existing customer with valid subscription
       const authToken = generateAuthToken(email, 'email_login');
-      showMessage(`Welcome back! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
+      const customerName = customerStatus.name || email.split('@')[0];
+      showMessage(`Welcome back, ${customerName}! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
       setTimeout(() => {
-        redirectToDashboardWithTier(authToken, email, customerStatus.tier);
+        redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
       // New customer or no subscription - redirect to signup
@@ -379,10 +393,11 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
         window.location.href = '/#signup?email=' + encodeURIComponent(email);
       }, 2000);
     } else {
-      showMessage('Email verified! Redirecting to dashboard...', 'success');
       const authToken = generateAuthToken(email, 'email_login');
+      const customerName = customerStatus.name || email.split('@')[0];
+      showMessage(`Welcome back, ${customerName}! Redirecting to your dashboard...`, 'success');
       setTimeout(() => {
-        redirectToDashboardWithTier(authToken, email, customerStatus.tier);
+        redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     }
     
