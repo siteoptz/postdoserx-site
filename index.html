@@ -1415,6 +1415,71 @@ function clearSignupMessage() {
   document.getElementById('signup-message-container').innerHTML = '';
 }
 
+// Direct GHL API contact creation
+async function createGHLContactDirect(email, name, tier) {
+  const GHL_API_BASE = 'https://services.leadconnectorhq.com';
+  const GHL_API_VERSION = 'v1';
+  const GHL_API_KEY = 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
+  const GHL_LOCATION_ID = 'ECu5ScdYFmB0WnhvYoBU';
+  
+  const url = `${GHL_API_BASE}/${GHL_API_VERSION}/contacts/`;
+  
+  const contactData = {
+    email,
+    firstName: name.split(' ')[0] || '',
+    lastName: name.split(' ').slice(1).join(' ') || '',
+    phone: '',
+    locationId: GHL_LOCATION_ID,
+    tags: [
+      `postdoserx-${tier}`,
+      'postdoserx-customer',
+      `signup-${new Date().toISOString().split('T')[0]}`
+    ],
+    customFields: [
+      {
+        key: 'subscription_tier',
+        value: tier
+      },
+      {
+        key: 'signup_date',
+        value: new Date().toISOString()
+      },
+      {
+        key: 'platform',
+        value: 'postdoserx-signup'
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GHL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(contactData)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`GHL API Error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('GHL contact created successfully:', result);
+    
+    return {
+      success: true,
+      contact: result,
+      message: `Contact created with ${tier} tier`
+    };
+  } catch (error) {
+    console.error('Direct GHL API call failed:', error);
+    throw error;
+  }
+}
+
 // Fallback method for GHL contact creation when API is blocked
 async function createGHLContactFallback(email, name, tier) {
   // Store user data locally for webhook or manual processing
@@ -1484,38 +1549,18 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
     const tier = selectedPlan.toLowerCase().includes('trial') ? 'trial' : 
                 selectedPlan.toLowerCase().includes('premium') ? 'premium' : 'trial';
     
-    // Create contact in GoHighLevel
+    // Create contact in GoHighLevel using direct API call
     showSignupMessage('Setting up your account...', 'info');
     
     let ghlData = { success: false, contact: null };
     
     try {
-      const ghlResponse = await fetch('/api/ghl-integration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'create_contact',
-          email: email,
-          name: name || '',
-          tier: tier,
-          phone: '' // Optional phone field
-        })
-      });
-      
-      // Check if response is JSON (API working) or HTML (auth required)
-      const contentType = ghlResponse.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        ghlData = await ghlResponse.json();
-      } else {
-        console.warn('GHL API requires authentication - using fallback method');
-        // Fallback: Store user data for later processing
-        ghlData = await createGHLContactFallback(email, name, tier);
-      }
+      // Try direct GHL API call first
+      ghlData = await createGHLContactDirect(email, name, tier);
+      console.log('Direct GHL contact creation result:', ghlData);
     } catch (error) {
-      console.warn('GHL API call failed:', error.message);
-      // Fallback: Store user data for later processing
+      console.warn('Direct GHL API call failed:', error.message);
+      // Fallback: Use email notification method
       ghlData = await createGHLContactFallback(email, name, tier);
     }
     
