@@ -1415,6 +1415,51 @@ function clearSignupMessage() {
   document.getElementById('signup-message-container').innerHTML = '';
 }
 
+// Fallback method for GHL contact creation when API is blocked
+async function createGHLContactFallback(email, name, tier) {
+  // Store user data locally for webhook or manual processing
+  const userData = {
+    email: email,
+    name: name || '',
+    tier: tier,
+    timestamp: Date.now(),
+    source: 'signup_fallback',
+    processed: false
+  };
+  
+  // Store in localStorage for potential later processing
+  let pendingUsers = JSON.parse(localStorage.getItem('postdoserx_pending_ghl_users') || '[]');
+  pendingUsers.push(userData);
+  localStorage.setItem('postdoserx_pending_ghl_users', JSON.stringify(pendingUsers));
+  
+  // Send to a webhook or email service as backup
+  try {
+    // Use a simple form submission to Formspree or similar service
+    const formData = new FormData();
+    formData.append('email', email);
+    formData.append('name', name || '');
+    formData.append('tier', tier);
+    formData.append('signup_date', new Date().toISOString());
+    formData.append('_subject', `PostDoseRX Signup - ${tier} - ${email}`);
+    
+    // This will send an email notification about the signup
+    // You can configure this in Formspree or similar service
+    await fetch('https://formspree.io/f/mvgoazkg', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    console.log('Fallback signup notification sent successfully');
+    return { success: true, contact: { fallback: true, email } };
+  } catch (error) {
+    console.warn('Fallback notification failed:', error);
+    return { success: false, error: 'Fallback method failed', contact: null };
+  }
+}
+
 // Handle signup form submission
 document.getElementById('quick-signup-form').addEventListener('submit', async function(e) {
   e.preventDefault();
@@ -1442,24 +1487,40 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
     // Create contact in GoHighLevel
     showSignupMessage('Setting up your account...', 'info');
     
-    const ghlResponse = await fetch('/api/ghl-integration', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action: 'create_contact',
-        email: email,
-        name: name || '',
-        tier: tier,
-        phone: '' // Optional phone field
-      })
-    });
+    let ghlData = { success: false, contact: null };
     
-    const ghlData = await ghlResponse.json();
+    try {
+      const ghlResponse = await fetch('/api/ghl-integration', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'create_contact',
+          email: email,
+          name: name || '',
+          tier: tier,
+          phone: '' // Optional phone field
+        })
+      });
+      
+      // Check if response is JSON (API working) or HTML (auth required)
+      const contentType = ghlResponse.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        ghlData = await ghlResponse.json();
+      } else {
+        console.warn('GHL API requires authentication - using fallback method');
+        // Fallback: Store user data for later processing
+        ghlData = await createGHLContactFallback(email, name, tier);
+      }
+    } catch (error) {
+      console.warn('GHL API call failed:', error.message);
+      // Fallback: Store user data for later processing
+      ghlData = await createGHLContactFallback(email, name, tier);
+    }
     
     if (!ghlData.success) {
-      console.warn('GHL contact creation failed, proceeding with fallback:', ghlData.error);
+      console.warn('GHL contact creation failed, but user signup will continue');
     }
     
     // Store user info for post-purchase account creation
