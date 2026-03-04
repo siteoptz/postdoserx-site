@@ -376,14 +376,23 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     clearMessage();
     
     // Check if email exists in GoHighLevel
+    console.log('🔍 LOGIN DEBUG: Starting customer verification for:', email);
     const customerStatus = await verifyGHLCustomer(email, false);
+    console.log('📋 LOGIN DEBUG: Customer status result:', customerStatus);
     
     if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
       // Existing customer with valid subscription
       const authToken = generateAuthToken(email, 'email_login');
       const customerName = customerStatus.name || email.split('@')[0];
+      console.log('✅ LOGIN DEBUG: Valid customer found, preparing redirect:', {
+        customerName,
+        tier: customerStatus.tier,
+        email,
+        authToken: authToken.substring(0, 20) + '...'
+      });
       showMessage(`Welcome back, ${customerName}! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
       setTimeout(() => {
+        console.log('🚀 LOGIN DEBUG: Calling redirectToDashboardWithTier');
         redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
@@ -454,6 +463,8 @@ function redirectToDashboard(authToken, email, name = null) {
 }
 
 function redirectToDashboardWithTier(authToken, email, tier = 'trial', name = null) {
+  console.log('🎯 redirectToDashboardWithTier called with:', { authToken: authToken?.substring(0, 20) + '...', email, tier, name });
+  
   const urlParams = new URLSearchParams(window.location.search);
   // Use app.postdoserx.com - the official dashboard URL
   const redirectUrl = urlParams.get('redirect') || 'https://app.postdoserx.com';
@@ -464,7 +475,8 @@ function redirectToDashboardWithTier(authToken, email, tier = 'trial', name = nu
     dashboardUrl += `&name=${encodeURIComponent(name)}`;
   }
   
-  console.log('🚀 Redirecting to dashboard:', dashboardUrl);
+  console.log('🚀 LOGIN DEBUG: Final redirect URL:', dashboardUrl);
+  console.log('🚀 LOGIN DEBUG: Redirecting now...');
   window.location.href = dashboardUrl;
 }
 
