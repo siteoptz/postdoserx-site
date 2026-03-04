@@ -2112,11 +2112,44 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
   }
   
   // Show loading state
-  submitBtn.textContent = 'Creating account...';
+  submitBtn.textContent = 'Checking account...';
   submitBtn.disabled = true;
   clearSignupMessage();
   
   try {
+    // CRITICAL: Check if user already exists before allowing signup
+    console.log('🔍 Validating user before signup...');
+    showSignupMessage('Checking your account status...', 'info');
+    
+    const userCheck = await checkExistingUser(email);
+    
+    if (userCheck.exists) {
+      // User already exists - block signup and redirect appropriately
+      console.log('⚠️ Existing user trying to sign up:', userCheck);
+      
+      if (userCheck.tier === 'premium') {
+        // Premium user - redirect to dashboard
+        showSignupMessage('You already have a Premium account! Redirecting to your dashboard...', 'error');
+        setTimeout(() => {
+          closeSignupModal();
+          window.location.href = `https://app.postdoserx.com?tier=premium&email=${encodeURIComponent(email)}`;
+        }, 2000);
+        return;
+      } else {
+        // Trial user - redirect to login
+        showSignupMessage('You already have an account! Please sign in instead.', 'error');
+        setTimeout(() => {
+          closeSignupModal();
+          window.location.href = `login.html?email=${encodeURIComponent(email)}&message=existing-user`;
+        }, 2000);
+        return;
+      }
+    }
+    
+    // User doesn't exist - proceed with signup
+    console.log('✅ New user confirmed - proceeding with signup');
+    submitBtn.textContent = 'Creating account...';
+    
     // Determine tier based on selected plan
     const tier = selectedPlan.toLowerCase().includes('trial') ? 'trial' : 
                 selectedPlan.toLowerCase().includes('premium') ? 'premium' : 'trial';
