@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GHL API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-form { background: #f5f5f5; padding: 20px; border-radius: 8px; max-width: 500px; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        input { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>GHL API Direct Test</h1>
+    
+    <div class="test-form">
+        <h3>Test GHL Contact Creation</h3>
+        <form id="ghlTestForm">
+            <label>Email:</label>
+            <input type="email" id="testEmail" value="browser-test@example.com" required>
+            
+            <label>First Name:</label>
+            <input type="text" id="testFirstName" value="Browser" required>
+            
+            <label>Last Name:</label>
+            <input type="text" id="testLastName" value="Test" required>
+            
+            <label>Tier:</label>
+            <select id="testTier">
+                <option value="trial">Trial</option>
+                <option value="premium">Premium</option>
+            </select>
+            
+            <br><br>
+            <button type="submit" id="testBtn">Test GHL API</button>
+        </form>
+    </div>
+    
+    <div id="result"></div>
+    
+    <script>
+        async function testGHLAPI(email, firstName, lastName, tier) {
+            const GHL_API_BASE = 'https://services.leadconnectorhq.com';
+            const GHL_API_KEY = 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
+            const GHL_LOCATION_ID = 'ECu5ScdYFmB0WnhvYoBU';
+            
+            const url = `${GHL_API_BASE}/contacts/`;
+            
+            const contactData = {
+                email: email,
+                firstName: firstName,
+                lastName: lastName,
+                phone: '',
+                locationId: GHL_LOCATION_ID,
+                tags: [
+                    `postdoserx-${tier}`,
+                    'postdoserx-customer',
+                    `browser-test-${new Date().toISOString().split('T')[0]}`
+                ],
+                customFields: [
+                    {
+                        key: 'subscription_tier',
+                        value: tier
+                    },
+                    {
+                        key: 'signup_date',
+                        value: new Date().toISOString()
+                    },
+                    {
+                        key: 'platform',
+                        value: 'browser-test'
+                    }
+                ]
+            };
+
+            console.log('🔄 Starting browser GHL test...');
+            console.log('📋 Contact data:', contactData);
+            console.log('🌐 API URL:', url);
+
+            try {
+                console.log('📞 Making fetch request to GHL API...');
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${GHL_API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Version': '2021-07-28'
+                    },
+                    body: JSON.stringify(contactData)
+                });
+
+                console.log('📨 GHL API Response status:', response.status);
+                console.log('📨 GHL API Response headers:', response.headers);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ GHL API Error Response:', errorText);
+                    throw new Error(`GHL API Error: ${response.status} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('✅ GHL contact created successfully:', result);
+                
+                return {
+                    success: true,
+                    contact: result,
+                    message: `Contact created with ${tier} tier`
+                };
+            } catch (error) {
+                console.error('❌ Browser GHL API call failed:', error);
+                console.error('❌ Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                throw error;
+            }
+        }
+
+        document.getElementById('ghlTestForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('testEmail').value;
+            const firstName = document.getElementById('testFirstName').value;
+            const lastName = document.getElementById('testLastName').value;
+            const tier = document.getElementById('testTier').value;
+            const btn = document.getElementById('testBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const result = await testGHLAPI(email, firstName, lastName, tier);
+                resultDiv.innerHTML = `
+                    <div class="result success">
+                        <h4>✅ Success!</h4>
+                        <p>Contact created successfully in GHL</p>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h4>❌ Error</h4>
+                        <p>Failed to create contact in GHL</p>
+                        <pre>${error.message}</pre>
+                        <details>
+                            <summary>Full Error Details</summary>
+                            <pre>${JSON.stringify({
+                                name: error.name,
+                                message: error.message,
+                                stack: error.stack
+                            }, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Test GHL API';
+            }
+        });
+    </script>
+</body>
+</html>
