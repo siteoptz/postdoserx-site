@@ -1142,11 +1142,34 @@ function startStripeCheckout(priceId, buttonElement) {
 <div id="signup-modal" class="modal" style="display:none;">
   <div class="modal-overlay" onclick="closeSignupModal()"></div>
   <div class="modal-content signup-modal-content">
-    <!-- STEP 1: Plan Selection -->
-    <div id="plan-selection-step" class="signup-step">
+    <!-- STEP 1: Email Check -->
+    <div id="email-check-step" class="signup-step">
       <div class="modal-header">
+        <h2 class="signup-title">Welcome Back!</h2>
+        <p class="signup-subtitle">Enter your email to check if you're already a customer</p>
+        <button class="modal-close" onclick="closeSignupModal()">×</button>
+      </div>
+
+      <div id="email-check-message-container"></div>
+
+      <form id="email-check-form" class="signup-form">
+        <div class="form-group">
+          <label for="check-email" class="form-label">Email Address</label>
+          <input type="email" id="check-email" name="email" class="form-input" placeholder="your.email@example.com" required>
+        </div>
+
+        <button type="submit" class="form-submit" id="email-check-submit">
+          Continue
+        </button>
+      </form>
+    </div>
+
+    <!-- STEP 2: Plan Selection -->
+    <div id="plan-selection-step" class="signup-step" style="display:none;">
+      <div class="modal-header">
+        <button class="back-btn" onclick="goBackToEmailCheck()">← Back</button>
         <h2 class="signup-title">Choose Your Plan</h2>
-        <p class="signup-subtitle">Start your GLP-1 nutrition journey with the perfect plan for you</p>
+        <p class="signup-subtitle">Welcome! Please choose your plan to get started</p>
         <button class="modal-close" onclick="closeSignupModal()">×</button>
       </div>
 
@@ -1222,7 +1245,7 @@ function startStripeCheckout(priceId, buttonElement) {
       </div>
     </div>
 
-    <!-- STEP 2: User Details -->
+    <!-- STEP 3: User Details -->
     <div id="user-details-step" class="signup-step" style="display:none;">
       <div class="modal-header">
         <button class="back-btn" onclick="goBackToPlanSelection()">← Back</button>
@@ -1648,17 +1671,12 @@ function startStripeCheckout(priceId, buttonElement) {
 let selectedPlan = null;
 let selectedPriceId = null;
 
-// New plan selection functions
+// New user validation functions
 function openSignupModal(planName = null, priceId = null) {
-  // Reset to plan selection step
-  document.getElementById('plan-selection-step').style.display = 'block';
+  // Reset to email check step
+  document.getElementById('email-check-step').style.display = 'block';
+  document.getElementById('plan-selection-step').style.display = 'none';
   document.getElementById('user-details-step').style.display = 'none';
-  
-  // If plan was pre-selected (from old links), auto-select it
-  if (planName && priceId) {
-    const tierName = planName.toLowerCase().includes('trial') ? 'trial' : 'premium';
-    setTimeout(() => selectPlan(tierName), 100);
-  }
   
   document.getElementById('signup-modal').style.display = 'flex';
   
@@ -1668,11 +1686,76 @@ function openSignupModal(planName = null, priceId = null) {
   const name = urlParams.get('name');
   
   if (email) {
+    document.getElementById('check-email').value = email;
     document.getElementById('signup-email').value = email;
   }
   if (name) {
     document.getElementById('signup-name').value = name;
   }
+  
+  // Focus email input
+  document.getElementById('check-email').focus();
+}
+
+// Check if user exists in GHL
+async function checkExistingUser(email) {
+  const GHL_API_BASE = 'https://services.leadconnectorhq.com';
+  const GHL_API_KEY = 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
+  const GHL_LOCATION_ID = 'ECu5ScdYFmB0WnhvYoBU';
+  
+  const url = `${GHL_API_BASE}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
+  
+  try {
+    console.log('🔍 Searching for user in GHL:', email);
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${GHL_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28'
+      }
+    });
+
+    console.log('📨 GHL search response status:', response.status);
+
+    if (!response.ok) {
+      throw new Error(`GHL Search Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('📋 GHL search data:', data);
+    
+    if (data.contacts && data.contacts.length > 0) {
+      const contact = data.contacts[0];
+      const tags = contact.tags || [];
+      console.log('🏷️ User tags:', tags);
+      
+      // More comprehensive tier detection
+      let tier = 'trial'; // default
+      if (tags.some(tag => tag.includes('premium') || tag.includes('postdoserx-premium'))) {
+        tier = 'premium';
+      }
+      
+      console.log(`✅ Existing user found with tier: ${tier}`);
+      return {
+        exists: true,
+        contact: contact,
+        tier: tier,
+        tags: tags
+      };
+    } else {
+      console.log('👤 No existing user found - new customer');
+      return { exists: false };
+    }
+  } catch (error) {
+    console.error('Error checking existing user:', error);
+    // On error, assume user doesn't exist and proceed with signup
+    return { exists: false };
+  }
+}
+
+function goBackToEmailCheck() {
+  document.getElementById('plan-selection-step').style.display = 'none';
+  document.getElementById('email-check-step').style.display = 'block';
 }
 
 function selectPlan(planType) {
@@ -1739,6 +1822,15 @@ function showSignupMessage(text, type = 'error') {
 
 function clearSignupMessage() {
   document.getElementById('signup-message-container').innerHTML = '';
+}
+
+function showEmailCheckMessage(text, type = 'error') {
+  const container = document.getElementById('email-check-message-container');
+  container.innerHTML = `<div class="signup-message ${type}">${text}</div>`;
+}
+
+function clearEmailCheckMessage() {
+  document.getElementById('email-check-message-container').innerHTML = '';
 }
 
 // Direct GHL API contact creation
@@ -1926,6 +2018,67 @@ async function createGHLContactFallback(email, name, tier) {
   }
 }
 
+// Handle email check form submission
+document.getElementById('email-check-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const submitBtn = document.getElementById('email-check-submit');
+  const originalText = submitBtn.textContent;
+  const email = document.getElementById('check-email').value;
+  
+  if (!email) {
+    showEmailCheckMessage('Please enter your email address.', 'error');
+    return;
+  }
+  
+  // Show loading state
+  submitBtn.textContent = 'Checking...';
+  submitBtn.disabled = true;
+  clearEmailCheckMessage();
+  
+  try {
+    console.log('🔍 Checking if user exists in GHL:', email);
+    showEmailCheckMessage('Checking your account...', 'info');
+    
+    const userCheck = await checkExistingUser(email);
+    
+    if (userCheck.exists) {
+      // Existing user - redirect directly to dashboard
+      console.log('✅ Existing user found:', userCheck.contact);
+      showEmailCheckMessage(`Welcome back! Redirecting to your ${userCheck.tier} dashboard...`, 'success');
+      
+      // Copy email to signup form in case they want to change plans
+      document.getElementById('signup-email').value = email;
+      
+      setTimeout(() => {
+        closeSignupModal();
+        // Redirect to dashboard with their tier
+        window.location.href = `https://app.postdoserx.com?tier=${userCheck.tier}&email=${encodeURIComponent(email)}`;
+      }, 2000);
+    } else {
+      // New user - proceed to plan selection
+      console.log('👤 New user - proceed to signup');
+      showEmailCheckMessage('New customer! Please choose your plan below.', 'success');
+      
+      // Copy email to signup form
+      document.getElementById('signup-email').value = email;
+      
+      setTimeout(() => {
+        document.getElementById('email-check-step').style.display = 'none';
+        document.getElementById('plan-selection-step').style.display = 'block';
+      }, 1500);
+    }
+    
+  } catch (error) {
+    console.error('Email check error:', error);
+    showEmailCheckMessage('Error checking account. Please try again.', 'error');
+  }
+  
+  // Reset button state
+  submitBtn.textContent = originalText;
+  submitBtn.disabled = false;
+});
+
 // Handle signup form submission
 document.getElementById('quick-signup-form').addEventListener('submit', async function(e) {
   e.preventDefault();
@@ -1962,12 +2115,12 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
     let ghlData = { success: false, contact: null };
     
     try {
-      // Try direct GHL API call first
-      console.log('🔄 Attempting direct GHL contact creation...');
+      // Create contact in GHL (only for new users who passed email check)
+      console.log('🔄 Creating new GHL contact...');
       ghlData = await createGHLContactDirect(email, name, tier);
-      console.log('✅ Direct GHL contact creation result:', ghlData);
+      console.log('✅ GHL contact created:', ghlData);
     } catch (error) {
-      console.warn('❌ Direct GHL API call failed:', error.message);
+      console.warn('❌ GHL contact creation failed:', error.message);
       console.error('❌ Full error object:', error);
       // Fallback: Use email notification method
       console.log('🔄 Attempting fallback method...');
