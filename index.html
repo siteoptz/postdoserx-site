@@ -1833,12 +1833,11 @@ function selectPlan(planType) {
   console.log('✅ Plan selected:', selectedPlan);
   
   if (planType === 'premium') {
-    // Premium users: Get email and create checkout session
-    console.log('💳 Premium selected - creating checkout session');
+    // Premium users: Redirect directly to Stripe payment link
+    console.log('💳 Premium selected - redirecting to Stripe payment link');
     
     // Get email from the current signup flow
     const email = document.getElementById('check-email').value;
-    const name = ''; // We'll get this from Stripe checkout
     
     console.log('📧 Email from input:', email);
     
@@ -1851,23 +1850,23 @@ function selectPlan(planType) {
     const planCard = document.querySelector('[data-plan="premium"]');
     planCard.innerHTML = `
       <div style="text-align: center; padding: 20px;">
-        <div style="color: #007bff; margin-bottom: 10px;">Creating secure checkout session...</div>
+        <div style="color: #007bff; margin-bottom: 10px;">Redirecting to secure checkout...</div>
         <div style="font-size: 14px; color: #666;">Processing your premium subscription</div>
       </div>
     `;
     
-    // Create checkout session
+    // Redirect to Stripe payment link
     setTimeout(() => {
-      createCheckoutSession(email, name, 'premium');
+      const premiumPaymentUrl = `https://buy.stripe.com/28E14mbhQ9xj4g5e5Z63K02?prefilled_email=${encodeURIComponent(email)}`;
+      window.location.href = premiumPaymentUrl;
     }, 1000);
     
   } else {
-    // Trial users: Get email and create Stripe checkout for $0 trial
-    console.log('🆓 Trial selected - creating $0 checkout session');
+    // Trial users: Redirect directly to Stripe payment link for free trial
+    console.log('🆓 Trial selected - redirecting to Stripe trial link');
     
     // Get email from the current signup flow
     const email = document.getElementById('check-email').value;
-    const name = ''; // We'll get this from Stripe checkout
     
     console.log('📧 Email from input:', email);
     
@@ -1885,9 +1884,10 @@ function selectPlan(planType) {
       </div>
     `;
     
-    // Create checkout session for trial
+    // Redirect to Stripe trial payment link
     setTimeout(() => {
-      createCheckoutSession(email, name, 'trial');
+      const trialPaymentUrl = `https://buy.stripe.com/aFa9AS2Lk10NdQF8LF63K00?prefilled_email=${encodeURIComponent(email)}`;
+      window.location.href = trialPaymentUrl;
     }, 1000);
   }
 }
