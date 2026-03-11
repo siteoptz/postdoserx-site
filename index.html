@@ -617,7 +617,7 @@ footer .f-links a:hover{color:var(--navy)}
             <div class="rec-item"><span class="rec-check">+</span> Adaptive recipe engine</div>
             <div class="rec-item"><span class="rec-check">+</span> Symptom-to-food matching</div>
             <div class="rec-item"><span class="rec-check">+</span> High-protein meal library</div>
-            <div class="rec-item"><span class="rec-check">+</span> $10/month all-inclusive</div>
+            <div class="rec-item"><span class="rec-check">+</span> $12.99/month all-inclusive</div>
           </div>
         </div>
 
@@ -625,7 +625,7 @@ footer .f-links a:hover{color:var(--navy)}
           <div class="cta-eyebrow">Your personalized plan is ready</div>
           <div class="cta-headline">Start your dose-aware meal plan today.</div>
           <div class="cta-sub">Join thousands of GLP-1 users who stopped guessing and started eating with confidence.</div>
-          <a href="#" class="cta-btn">Get Started — $10/month</a>
+          <a href="#" class="cta-btn">Get Started — $12.99/month</a>
         </div>
 
         <div class="cta-secondary">
@@ -638,7 +638,7 @@ footer .f-links a:hover{color:var(--navy)}
         <div class="stat-item"><div class="stat-val">30M+</div><div class="stat-label">GLP-1 users in the US</div></div>
         <div class="stat-item"><div class="stat-val">68%</div><div class="stat-label">Experience nausea</div></div>
         <div class="stat-item"><div class="stat-val">3x</div><div class="stat-label">Better results w/ structured plans</div></div>
-        <div class="stat-item"><div class="stat-val">$10</div><div class="stat-label">Per month, all-inclusive</div></div>
+        <div class="stat-item"><div class="stat-val">$12.99</div><div class="stat-label">Per month, all-inclusive</div></div>
       </div>
     </div>
   </div>
@@ -648,11 +648,11 @@ footer .f-links a:hover{color:var(--navy)}
 <section class="pricing" id="pricing">
   <div class="wrap">
     <p class="label">Pricing</p>
-    <h2>$12/month is invisible next to your medication cost.</h2>
+    <h2>$12.99/month is invisible next to your medication cost.</h2>
     <p class="pricing-sub">Start with a trial. Stay because it works.</p>
     <div class="pricing-grid">
-      <div class="p-card"><p class="p-tier">Trial</p><div class="p-price">Free</div><span class="p-period">7 days</span><p class="p-desc">Basic meal plans synced to your injection schedule.</p><ul class="p-list"><li>Dose-day synchronized meals</li><li>Weekly grocery lists</li><li>Side effect food guide</li><li>Basic symptom logger</li></ul><button class="p-btn p-btn-o" onclick="openSignupModal()">Start Free Trial</button></div>
-      <div class="p-card p-feat"><p class="p-tier">Premium</p><div class="p-price">$10</div><span class="p-period">per month</span><p class="p-desc">The full engine. Learns your patterns, adapts every week.</p><ul class="p-list"><li>Everything in Trial</li><li>AI-powered adaptive recipes</li><li>Meal rating feedback loop</li><li>Symptom-to-food matching</li><li>Community access</li><li>Progress tracking</li></ul><button class="p-btn p-btn-f" onclick="openSignupModal()">Get Premium Access</button></div>
+      <div class="p-card"><p class="p-tier">Trial</p><div class="p-price">Free</div><span class="p-period">7 days</span><p class="p-desc">Basic meal plans synced to your injection schedule.</p><ul class="p-list"><li>Dose-day synchronized meals</li><li>Weekly grocery lists</li><li>Side effect food guide</li><li>Basic symptom logger</li><li>$9.99 after the trial</li></ul><button class="p-btn p-btn-o" onclick="openSignupModal()">Start Free Trial</button></div>
+      <div class="p-card p-feat"><p class="p-tier">Premium</p><div class="p-price">$12.99</div><span class="p-period">per month</span><p class="p-desc">The full engine. Learns your patterns, adapts every week.</p><ul class="p-list"><li>Everything in Trial</li><li>AI-powered adaptive recipes</li><li>Meal rating feedback loop</li><li>Symptom-to-food matching</li><li>Community access</li><li>Progress tracking</li></ul><button class="p-btn p-btn-f" onclick="openSignupModal()">Get Premium Access</button></div>
       <div class="p-card"><p class="p-tier">Clinic</p><div class="p-price">Custom</div><span class="p-period">per patient, billed to practice</span><p class="p-desc">For prescribing clinics. Hand patients a plan with every script.</p><ul class="p-list"><li>Everything in Premium</li><li>Provider dashboard</li><li>Patient onboarding flow</li><li>Aggregate compliance data</li><li>White-label option</li></ul><button class="p-btn p-btn-o" onclick="openModal('contact')">Contact sales</button></div>
     </div>
   </div>
@@ -1113,9 +1113,9 @@ function startStripeCheckout(priceId, buttonElement) {
     paymentLinkUrl = 'https://buy.stripe.com/aFa9AS2Lk10NdQF8LF63K00';
     console.log('Opening Trial payment link');
   } else if (priceId === 'price_1SrSYIAYjb6yVLnRYPJTOU5A') {
-    // Premium plan payment link
-    paymentLinkUrl = 'https://buy.stripe.com/3cI5kCeu224R3c11jd63K01';
-    console.log('Opening Premium payment link');
+    // Premium plan with 7-day trial payment link
+    paymentLinkUrl = 'https://buy.stripe.com/28E14mbhQ9xj4g5e5Z63K02';
+    console.log('Opening Premium 7-day trial payment link');
   } else {
     console.error('Unknown price ID:', priceId);
     alert('Error: Unknown subscription plan. Please try again.');
@@ -1139,8 +1139,8 @@ function startStripeCheckout(priceId, buttonElement) {
 </script>
 
 <!-- Quick Signup Modal -->
-<div id="signup-modal" class="modal" style="display:none;">
-  <div class="modal-overlay" onclick="closeSignupModal()"></div>
+<div id="signup-modal" class="signup-modal" style="display:none;">
+  <div class="signup-modal-overlay" onclick="closeSignupModal()"></div>
   <div class="modal-content signup-modal-content">
     <!-- STEP 1: Email Check -->
     <div id="email-check-step" class="signup-step">
@@ -1201,7 +1201,7 @@ function startStripeCheckout(priceId, buttonElement) {
               <span>Basic symptom logger</span>
             </div>
           </div>
-          <button class="plan-select-btn">Start Free Trial</button>
+          <button class="plan-select-btn" onclick="event.stopPropagation(); selectPlan('trial');">Start Free Trial</button>
         </div>
 
         <!-- Premium Plan -->
@@ -1210,7 +1210,7 @@ function startStripeCheckout(priceId, buttonElement) {
           <div class="plan-header">
             <h3 class="plan-title">Premium</h3>
             <div class="plan-price">
-              <span class="price-amount">$10</span>
+              <span class="price-amount">$12.99</span>
               <span class="price-period">/ month</span>
             </div>
           </div>
@@ -1240,7 +1240,7 @@ function startStripeCheckout(priceId, buttonElement) {
               <span>Community access</span>
             </div>
           </div>
-          <button class="plan-select-btn">Get Premium Access</button>
+          <button class="plan-select-btn" onclick="event.stopPropagation(); selectPlan('premium');">Get Premium Access</button>
         </div>
       </div>
     </div>
@@ -1291,7 +1291,7 @@ function startStripeCheckout(priceId, buttonElement) {
 
 <style>
 /* Signup Modal Styles */
-.modal {
+.signup-modal {
   position: fixed;
   top: 0;
   left: 0;
@@ -1303,7 +1303,7 @@ function startStripeCheckout(priceId, buttonElement) {
   justify-content: center;
 }
 
-.modal-overlay {
+.signup-modal-overlay {
   position: absolute;
   top: 0;
   left: 0;
@@ -1767,7 +1767,53 @@ function goBackToEmailCheck() {
   document.getElementById('email-check-step').style.display = 'block';
 }
 
+// Create Stripe checkout session
+async function createCheckoutSession(email, name, tier = 'premium') {
+  try {
+    console.log('🔄 Creating checkout session for:', { email, name, tier });
+    
+    // Determine price ID based on tier
+    const priceId = tier === 'premium' ? 'price_1SrSYIAYjb6yVLnRYPJTOU5A' : 'price_1SrSZbAYjb6yVLnRHNOJVKy2';
+    
+    const response = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        priceId: priceId,
+        email: email,
+        name: name,
+        tier: tier
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const session = await response.json();
+    
+    if (session.success && session.url) {
+      console.log('✅ Checkout session created:', session.sessionId);
+      console.log('🔗 Redirecting to:', session.url);
+      window.location.href = session.url;
+    } else {
+      throw new Error(session.error || 'Failed to create checkout session');
+    }
+    
+  } catch (error) {
+    console.error('❌ Checkout session error:', error);
+    alert('Unable to start checkout. Please try again or contact support.');
+    
+    // Reset the plan card if there was an error
+    location.reload();
+  }
+}
+
 function selectPlan(planType) {
+  console.log('🎯 selectPlan called with:', planType);
+  
   // Remove selected class from all cards
   document.querySelectorAll('.plan-card').forEach(card => {
     card.classList.remove('selected');
@@ -1775,50 +1821,74 @@ function selectPlan(planType) {
   
   // Add selected class to chosen card
   const selectedCard = document.querySelector(`[data-plan="${planType}"]`);
-  selectedCard.classList.add('selected');
+  if (selectedCard) {
+    selectedCard.classList.add('selected');
+  } else {
+    console.error('❌ Could not find plan card for:', planType);
+  }
   
   // Store plan selection
   selectedPlan = planType === 'trial' ? 'Trial' : 'Premium';
   
-  console.log('🎯 Plan selected:', selectedPlan);
+  console.log('✅ Plan selected:', selectedPlan);
   
   if (planType === 'premium') {
-    // Premium users: Redirect to Stripe checkout immediately
-    console.log('💳 Premium selected - redirecting to Stripe checkout');
+    // Premium users: Get email and create checkout session
+    console.log('💳 Premium selected - creating checkout session');
+    
+    // Get email from the current signup flow
+    const email = document.getElementById('check-email').value;
+    const name = ''; // We'll get this from Stripe checkout
+    
+    console.log('📧 Email from input:', email);
+    
+    if (!email) {
+      alert('Please enter your email address first');
+      return;
+    }
     
     // Show loading message
     const planCard = document.querySelector('[data-plan="premium"]');
     planCard.innerHTML = `
       <div style="text-align: center; padding: 20px;">
-        <div style="color: #007bff; margin-bottom: 10px;">Redirecting to secure checkout...</div>
-        <div style="font-size: 14px; color: #666;">You'll be able to set up your account after payment</div>
+        <div style="color: #007bff; margin-bottom: 10px;">Creating secure checkout session...</div>
+        <div style="font-size: 14px; color: #666;">Processing your premium subscription</div>
       </div>
     `;
     
-    // Redirect to Stripe checkout
+    // Create checkout session
     setTimeout(() => {
-      window.location.href = 'https://buy.stripe.com/3cI5kCeu224R3c11jd63K01';
-    }, 1500);
+      createCheckoutSession(email, name, 'premium');
+    }, 1000);
     
   } else {
-    // Trial users: Continue to user details step
+    // Trial users: Get email and create Stripe checkout for $0 trial
+    console.log('🆓 Trial selected - creating $0 checkout session');
+    
+    // Get email from the current signup flow
+    const email = document.getElementById('check-email').value;
+    const name = ''; // We'll get this from Stripe checkout
+    
+    console.log('📧 Email from input:', email);
+    
+    if (!email) {
+      alert('Please enter your email address first');
+      return;
+    }
+    
+    // Show loading message
+    const planCard = document.querySelector('[data-plan="trial"]');
+    planCard.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <div style="color: #007bff; margin-bottom: 10px;">Setting up your free trial...</div>
+        <div style="font-size: 14px; color: #666;">Securing your spot with no payment required</div>
+      </div>
+    `;
+    
+    // Create checkout session for trial
     setTimeout(() => {
-      document.getElementById('plan-selection-step').style.display = 'none';
-      document.getElementById('user-details-step').style.display = 'block';
-      
-      // Update the plan name in step 2
-      document.getElementById('selected-plan-name').textContent = selectedPlan;
-      
-      // Update button text and disclaimer for trial
-      const submitBtn = document.getElementById('submit-btn-text');
-      const disclaimer = document.getElementById('signup-disclaimer-text');
-      
-      submitBtn.textContent = 'Start Free Trial';
-      disclaimer.textContent = 'Get instant access to your 7-day trial. No payment required!';
-      
-      // Focus email input
-      document.getElementById('signup-email').focus();
-    }, 300);
+      createCheckoutSession(email, name, 'trial');
+    }, 1000);
   }
 }
 
@@ -2085,7 +2155,7 @@ document.getElementById('email-check-form').addEventListener('submit', async fun
     } else {
       // New user - proceed to plan selection
       console.log('👤 New user - proceed to signup');
-      showEmailCheckMessage('New customer! Please choose your plan below.', 'success');
+      showEmailCheckMessage('No account found for this email. Let\'s get you started! Choose your plan below.', 'info');
       
       // Copy email to signup form
       document.getElementById('signup-email').value = email;
@@ -2251,7 +2321,7 @@ function initiateStripeCheckout(priceId, email, name) {
   if (priceId === 'price_1SrSZbAYjb6yVLnRHNOJVKy2') {
     paymentLinkUrl = 'https://buy.stripe.com/aFa9AS2Lk10NdQF8LF63K00';
   } else if (priceId === 'price_1SrSYIAYjb6yVLnRYPJTOU5A') {
-    paymentLinkUrl = 'https://buy.stripe.com/3cI5kCeu224R3c11jd63K01';
+    paymentLinkUrl = 'https://buy.stripe.com/28E14mbhQ9xj4g5e5Z63K02';
   } else {
     console.error('Unknown price ID:', priceId);
     return;
@@ -2283,16 +2353,39 @@ document.addEventListener('keydown', function(e) {
 // Handle URL hash for direct signup links
 function handleUrlHash() {
   const hash = window.location.hash;
-  const urlParams = new URLSearchParams(window.location.search);
   
-  if (hash === '#signup') {
-    // Default to Premium plan if no specific plan requested
-    const planName = urlParams.get('plan') || 'Premium';
+  if (hash.startsWith('#signup')) {
+    console.log('📋 Processing signup hash:', hash);
+    
+    // Parse parameters from hash (e.g., #signup?email=test@example.com)
+    const hashParams = new URLSearchParams(hash.substring(hash.indexOf('?') + 1));
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Get email from hash params or URL params
+    const email = hashParams.get('email') || urlParams.get('email');
+    const planName = hashParams.get('plan') || urlParams.get('plan') || 'Premium';
     const priceId = planName === 'Trial' ? 'price_1SrSZbAYjb6yVLnRHNOJVKy2' : 'price_1SrSYIAYjb6yVLnRYPJTOU5A';
+    
+    console.log('📧 Extracted email from hash:', email);
     
     // Small delay to ensure page is loaded
     setTimeout(() => {
       openSignupModal(planName, priceId);
+      
+      // Pre-fill email if found in hash
+      if (email) {
+        const emailInput = document.getElementById('check-email');
+        if (emailInput) {
+          emailInput.value = email;
+          console.log('✅ Pre-filled email input:', email);
+          
+          // Automatically trigger email validation for direct links
+          console.log('🤖 Auto-triggering email validation for direct link');
+          setTimeout(() => {
+            document.getElementById('email-check-submit').click();
+          }, 1000);
+        }
+      }
     }, 500);
   }
 }
