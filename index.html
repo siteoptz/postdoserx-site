@@ -1862,11 +1862,12 @@ function selectPlan(planType) {
     }, 1000);
     
   } else {
-    // Trial users: Redirect directly to Stripe payment link for free trial
-    console.log('🆓 Trial selected - redirecting to Stripe trial link');
+    // Trial users: Create checkout session with 7-day trial period
+    console.log('🆓 Trial selected - creating checkout session with trial period');
     
     // Get email from the current signup flow
     const email = document.getElementById('check-email').value;
+    const name = ''; // We'll get this from Stripe checkout
     
     console.log('📧 Email from input:', email);
     
@@ -1880,14 +1881,13 @@ function selectPlan(planType) {
     planCard.innerHTML = `
       <div style="text-align: center; padding: 20px;">
         <div style="color: #007bff; margin-bottom: 10px;">Setting up your free trial...</div>
-        <div style="font-size: 14px; color: #666;">Securing your spot with no payment required</div>
+        <div style="font-size: 14px; color: #666;">Securing your 7-day free trial, no payment required</div>
       </div>
     `;
     
-    // Redirect to Stripe trial payment link
+    // Create checkout session with trial period
     setTimeout(() => {
-      const trialPaymentUrl = `https://buy.stripe.com/aFa9AS2Lk10NdQF8LF63K00?prefilled_email=${encodeURIComponent(email)}`;
-      window.location.href = trialPaymentUrl;
+      createCheckoutSession(email, name, 'trial');
     }, 1000);
   }
 }
