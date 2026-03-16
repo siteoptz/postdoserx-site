@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-88V4C67ENM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-88V4C67ENM');
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PostDoseRX — Meal planning built around your injection day</title>
@@ -60,6 +69,10 @@ nav .links a:hover{color:var(--navy)}
 .hero-form button{padding:13px 22px;border:1px solid var(--magenta);background:var(--magenta);color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap;border-radius:0 8px 8px 0}
 .hero-form button:hover{background:var(--magenta-dark)}
 .hero-note{font-size:11px;color:var(--text-muted);margin-top:10px;font-weight:500;letter-spacing:.02em}
+
+/* MEDICATION BRANDS */
+.medication-brands{font-size:13px;color:var(--gold-dark);font-weight:600;margin-bottom:20px;letter-spacing:.02em}
+.medication-list{font-size:11px;color:var(--text-muted);font-weight:500;margin-top:12px;letter-spacing:.02em}
 
 /* SCHEDULE CARD */
 .sched{border:1px solid var(--border);background:var(--white);border-radius:12px;overflow:hidden}
@@ -304,7 +317,8 @@ footer .f-links a:hover{color:var(--navy)}
 @media(max-width:768px){
   .wrap{padding:0 24px}
   nav{padding:0 24px}
-  nav .links a:not(.btn-sm){display:none}
+  nav .links a:not(.btn-sm):not([href*="login"]){display:none}
+  nav .links a[href*="login"]{display:inline-block;padding:7px 18px;background:var(--magenta);color:#fff !important;font-size:12px;font-weight:700;text-decoration:none;transition:background .15s;border-radius:6px}
   .hero{padding:100px 0 60px}
   h1{font-size:36px}
   h2{font-size:28px}
@@ -342,6 +356,11 @@ footer .f-links a:hover{color:var(--navy)}
   .stats-bar{grid-template-columns:1fr}
   .brain-svg-wrap{width:150px;height:150px}
   .brain-svg-wrap svg{width:150px;height:150px}
+  nav .logo{font-size:16px}
+  nav .links{gap:16px}
+  .modal-header{padding:24px 24px 0}
+  .modal-body{padding:24px}
+  .modal-overlay{padding:20px 16px}
 }
 /* Modal overlay */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;background:rgba(27,42,74,.65);backdrop-filter:blur(6px);display:none;align-items:flex-start;justify-content:center;padding:40px 24px;overflow-y:auto;opacity:0;transition:opacity .3s}
@@ -396,7 +415,7 @@ footer .f-links a:hover{color:var(--navy)}
   <div class="links">
     <a href="#how">How it works</a>
     <a href="#pricing">Pricing</a>
-    <a href="/login.html">Sign In</a>
+    <a href="https://postdoserx.com/#signup">Sign In</a>
     <a href="#quiz" class="btn-sm">Take the quiz</a>
   </div>
 </nav>
@@ -405,11 +424,11 @@ footer .f-links a:hover{color:var(--navy)}
 <section class="hero">
   <div class="wrap">
     <div>
-      <div class="hero-kicker">For Ozempic, Wegovy, Mounjaro &amp; Zepbound</div>
+      <div class="hero-kicker">For OZEMPIC, WEGOVY, MOUNJARO, ZEPBOUND, SAXENDA, VICTOZA, TRULICITY &amp; RYBELSUS</div>
       <h1>Meal planning built<br>around your <em>injection day.</em></h1>
       <p class="hero-lede">The first week on Ozempic, food becomes a stranger. Nothing sounds good. Everything sounds like it might come back up. <strong>Thirty million people cycling through the same unpredictable appetite with no guidance.</strong> The medication came with a prescription, but no eating plan.</p>
       <div class="hero-cta">
-        <button class="hero-btn" onclick="openSignupModal()">Get Started Free</button>
+        <button class="hero-btn" onclick="gtag('event', 'hero_cta_click', {'event_category': 'engagement', 'event_label': 'get_started_free'}); openSignupModal()">Get Started Free</button>
         <p class="hero-note">Choose your plan • Trial or Premium • No card required for trial</p>
       </div>
     </div>
@@ -442,7 +461,7 @@ footer .f-links a:hover{color:var(--navy)}
     <p class="label">How PostDoseRX works</p>
     <h2>The week is built around injection day. Everything adjusts from there.</h2>
     <div class="how-grid">
-      <div class="how-item"><p class="how-num">01</p><h3>Map your medication cycle</h3><p>Tell PostDoseRX your medication, dose, and injection day. The app maps the predictable side-effect pattern from published clinical data before you log a single meal.</p><p class="how-aside">Supports Ozempic, Wegovy, Mounjaro, and Zepbound at all dose levels.</p></div>
+      <div class="how-item"><p class="how-num">01</p><h3>Map your medication cycle</h3><p>Tell PostDoseRX your medication, dose, and injection day. The app maps the predictable side-effect pattern from published clinical data before you log a single meal.</p><p class="how-aside">Supports Ozempic, Wegovy, Mounjaro, Zepbound, Saxenda, Victoza, Trulicity &amp; Rybelsus.</p></div>
       <div class="how-item"><p class="how-num">02</p><h3>Get dose-aware meals</h3><p>High-protein, smaller meals when the drug suppresses appetite hardest. Calorie-dense options when it fades. Nausea-friendly dinners on the days that need them.</p><p class="how-aside">50 seed recipes tagged by symptom compatibility. Grows with every user rating.</p></div>
       <div class="how-item"><p class="how-num">03</p><h3>Learn your patterns</h3><p>This person tolerates eggs on injection day but not pasta. That one needs bland carbs for 48 hours post-dose. Every meal rating sharpens the next suggestion.</p><p class="how-aside">Symptom logger feeds back into the recipe engine after every meal.</p></div>
     </div>
@@ -525,7 +544,7 @@ footer .f-links a:hover{color:var(--navy)}
 
         <div class="quiz-nav">
           <button class="btn-prev" id="btn-prev" onclick="prevStep()" style="display:none">Previous</button>
-          <button class="btn-next" id="btn-next" onclick="nextStep()" disabled>Next</button>
+          <button class="btn-next" id="btn-next" onclick="gtag('event', 'quiz_navigation', {'event_category': 'engagement', 'event_label': 'quiz_next_step'}); nextStep()" disabled>Next</button>
         </div>
       </div>
 
@@ -629,8 +648,8 @@ footer .f-links a:hover{color:var(--navy)}
         </div>
 
         <div class="cta-secondary">
-          <a href="#" class="btn-sec btn-sec-outline">Get free 7-day plan first</a>
-          <a href="#" class="btn-sec btn-sec-fill">Take me to the research</a>
+          <a href="#final" class="btn-sec btn-sec-outline" onclick="gtag('event', 'secondary_cta_click', {'event_category': 'engagement', 'event_label': 'get_free_7_day_plan_first'})">Get free 7-day plan first</a>
+          <a href="#research" class="btn-sec btn-sec-fill" onclick="gtag('event', 'secondary_cta_click', {'event_category': 'engagement', 'event_label': 'take_me_to_research'})">Take me to the research</a>
         </div>
       </div>
 
@@ -651,9 +670,9 @@ footer .f-links a:hover{color:var(--navy)}
     <h2>$12.99/month is invisible next to your medication cost.</h2>
     <p class="pricing-sub">Start with a trial. Stay because it works.</p>
     <div class="pricing-grid">
-      <div class="p-card"><p class="p-tier">Trial</p><div class="p-price">Free</div><span class="p-period">7 days</span><p class="p-desc">Basic meal plans synced to your injection schedule.</p><ul class="p-list"><li>Dose-day synchronized meals</li><li>Weekly grocery lists</li><li>Side effect food guide</li><li>Basic symptom logger</li><li>$9.99 after the trial</li></ul><button class="p-btn p-btn-o" onclick="openSignupModal()">Start Free Trial</button></div>
-      <div class="p-card p-feat"><p class="p-tier">Premium</p><div class="p-price">$12.99</div><span class="p-period">per month</span><p class="p-desc">The full engine. Learns your patterns, adapts every week.</p><ul class="p-list"><li>Everything in Trial</li><li>AI-powered adaptive recipes</li><li>Meal rating feedback loop</li><li>Symptom-to-food matching</li><li>Community access</li><li>Progress tracking</li></ul><button class="p-btn p-btn-f" onclick="openSignupModal()">Get Premium Access</button></div>
-      <div class="p-card"><p class="p-tier">Clinic</p><div class="p-price">Custom</div><span class="p-period">per patient, billed to practice</span><p class="p-desc">For prescribing clinics. Hand patients a plan with every script.</p><ul class="p-list"><li>Everything in Premium</li><li>Provider dashboard</li><li>Patient onboarding flow</li><li>Aggregate compliance data</li><li>White-label option</li></ul><button class="p-btn p-btn-o" onclick="openModal('contact')">Contact sales</button></div>
+      <div class="p-card"><p class="p-tier">Trial</p><div class="p-price">Free</div><span class="p-period">7 days</span><p class="p-desc">Basic meal plans synced to your injection schedule.</p><ul class="p-list"><li>Dose-day synchronized meals</li><li>Weekly grocery lists</li><li>Side effect food guide</li><li>Basic symptom logger</li><li>$9.99 after the trial</li></ul><button class="p-btn p-btn-o" onclick="gtag('event', 'pricing_cta_click', {'event_category': 'engagement', 'event_label': 'start_free_trial', 'value': 0}); openSignupModal()">Start Free Trial</button></div>
+      <div class="p-card p-feat"><p class="p-tier">Premium</p><div class="p-price">$12.99</div><span class="p-period">per month</span><p class="p-desc">The full engine. Learns your patterns, adapts every week.</p><ul class="p-list"><li>Everything in Trial</li><li>AI-powered adaptive recipes</li><li>Meal rating feedback loop</li><li>Symptom-to-food matching</li><li>Community access</li><li>Progress tracking</li></ul><button class="p-btn p-btn-f" onclick="gtag('event', 'pricing_cta_click', {'event_category': 'engagement', 'event_label': 'get_premium_access', 'value': 12.99}); openSignupModal()">Get Premium Access</button></div>
+      <div class="p-card"><p class="p-tier">Clinic</p><div class="p-price">Custom</div><span class="p-period">per patient, billed to practice</span><p class="p-desc">For prescribing clinics. Hand patients a plan with every script.</p><ul class="p-list"><li>Everything in Premium</li><li>Provider dashboard</li><li>Patient onboarding flow</li><li>Aggregate compliance data</li><li>White-label option</li></ul><button class="p-btn p-btn-o" onclick="gtag('event', 'pricing_cta_click', {'event_category': 'engagement', 'event_label': 'contact_sales', 'value': 0}); openModal('contact')">Contact sales</button></div>
     </div>
   </div>
 </section>
@@ -665,25 +684,25 @@ footer .f-links a:hover{color:var(--navy)}
     <h2>The strongest channel is the prescribing clinic.</h2>
     <p>A doctor who hands a patient a prescription and says <strong>"download this for your meals"</strong> reaches them before they start Googling. Telehealth clinics prescribing millions of doses a year are the scalable version of that same handoff.</p>
     <p>The feedback loop between symptom data, meal outcomes, and medication timing builds a dataset that gets more valuable with every user and <strong>doesn't exist anywhere in clinical nutrition today.</strong></p>
-    <div class="channel-pull"><p>$12/month is invisible next to the cost of the medication itself. The question isn't whether patients will pay. It's whether their provider tells them it exists.</p></div>
+    <div class="channel-pull"><p>$12.99/month is invisible next to the cost of the medication itself. The question isn't whether patients will pay. It's whether their provider tells them it exists.</p></div>
   </div>
 </section>
 
 <!-- FINAL CTA -->
-<section class="final">
+<section class="final" id="final">
   <div class="wrap">
     <h2>Your medication works.<br>Now give it the right fuel.</h2>
     <p class="final-sub">Free 7-day meal plan built around your injection schedule, plus a side effect management guide.</p>
     <form class="final-form" onsubmit="event.preventDefault();send(this)">
       <input type="email" placeholder="Email address" required>
-      <button type="submit">Get free plan</button>
+      <button type="submit" onclick="gtag('event', 'lead_magnet_form_submit', {'event_category': 'lead_generation', 'event_label': 'get_free_7_day_plan'})">Get free plan</button>
     </form>
     <p class="final-note">No spam. Unsubscribe anytime.</p>
-    <div class="final-meds"><span>Ozempic</span><span>Wegovy</span><span>Mounjaro</span><span>Zepbound</span></div>
+    <div class="final-meds"><span>Ozempic</span><span>Wegovy</span><span>Mounjaro</span><span>Zepbound</span><span>Saxenda</span><span>Victoza</span><span>Trulicity</span><span>Rybelsus</span></div>
   </div>
 </section>
 
-<div class="disclaimer">PostDoseRX provides lifestyle and nutritional guidance only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always consult your healthcare provider before making changes to your diet or medication regimen. PostDoseRX is not affiliated with Novo Nordisk (Ozempic, Wegovy) or Eli Lilly (Mounjaro, Zepbound).</div>
+<div class="disclaimer">PostDoseRX provides lifestyle and nutritional guidance only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always consult your healthcare provider before making changes to your diet or medication regimen. PostDoseRX is not affiliated with Novo Nordisk (Ozempic, Wegovy, Saxenda, Victoza, Rybelsus) or Eli Lilly (Mounjaro, Zepbound, Trulicity).</div>
 <footer><span class="copy">PostDose<span style="color:var(--magenta)">RX</span> &copy; 2026</span><div class="f-links"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/contact.html">Contact</a></div></footer>
 
 <script>
@@ -839,11 +858,90 @@ function prevStep() {
   if (currentStep > 1) { currentStep--; updateView(); }
 }
 
-function send(f) {
+async function send(f) {
   var i = f.querySelector('input'), b = f.querySelector('button'), t = b.textContent;
-  if (!i.value) return;
-  b.textContent = 'Sending...'; b.style.opacity = '.6';
-  setTimeout(function() { i.value = ''; b.textContent = 'Check your inbox'; b.style.opacity = '1'; setTimeout(function() { b.textContent = t }, 2800) }, 900);
+  var email = i.value.trim();
+  
+  if (!email) return;
+  
+  // Validate email format
+  var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    b.textContent = 'Invalid email'; b.style.opacity = '.7';
+    setTimeout(function() { b.textContent = t; b.style.opacity = '1'; }, 2000);
+    return;
+  }
+  
+  b.textContent = 'Sending...'; b.style.opacity = '.6'; b.disabled = true;
+  
+  try {
+    console.log('📧 Creating lead magnet contact for:', email);
+    
+    // Create lead in GHL with postdoserx-leadmagnet tag
+    const response = await fetch('/api/ghl-integration', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create_contact',
+        email: email,
+        name: '', // No name provided in lead magnet form
+        tier: 'leadmagnet',
+        tags: ['postdoserx-leadmagnet'],
+        source: 'website-leadmagnet'
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('✅ Lead magnet contact created successfully');
+      i.value = ''; 
+      b.textContent = 'Check your inbox'; 
+      b.style.opacity = '1';
+      
+      // Show thank you popup
+      showThankYouPopup();
+      
+      // Track conversion
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'lead_magnet_signup', {
+          'event_category': 'leadmagnet',
+          'event_label': 'free_7_day_meal_plan'
+        });
+      }
+    } else {
+      console.error('❌ Failed to create lead contact:', result.error);
+      b.textContent = 'Try again'; 
+      b.style.opacity = '1';
+    }
+  } catch (error) {
+    console.error('❌ Error creating lead contact:', error);
+    b.textContent = 'Try again'; 
+    b.style.opacity = '1';
+  }
+  
+  b.disabled = false;
+  setTimeout(function() { b.textContent = t; }, 3000);
+}
+
+// Show thank you popup for lead magnet
+function showThankYouPopup() {
+  const modal = document.getElementById('thankyou-modal');
+  modal.style.display = 'flex';
+  modal.style.opacity = '0';
+  setTimeout(() => {
+    modal.style.opacity = '1';
+  }, 10);
+  document.body.style.overflow = 'hidden';
+}
+
+function closeThankYouModal() {
+  const modal = document.getElementById('thankyou-modal');
+  modal.style.opacity = '0';
+  setTimeout(() => {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }, 300);
 }
 
 // Scroll reveal
@@ -854,6 +952,42 @@ document.querySelectorAll('.how-item,.p-card,.data-item').forEach(function(el) {
   el.style.opacity = '0'; el.style.transform = 'translateY(12px)'; el.style.transition = 'opacity .45s ease,transform .45s ease'; obs.observe(el)
 });
 </script>
+
+<!-- ═══ THANK YOU MODAL ═══ -->
+<div class="modal-overlay" id="thankyou-modal" onclick="if(event.target===this)closeThankYouModal()">
+<div class="modal-box">
+<button class="modal-close" onclick="closeThankYouModal()">&times;</button>
+<div class="modal-header">
+<p class="label">Success!</p>
+<h2>Thank You! 🎉</h2>
+<p>Your free 7-day GLP-1 meal plan is on its way</p>
+</div>
+<div class="modal-body">
+<div style="text-align: center; padding: 20px 0;">
+<div style="font-size: 64px; margin-bottom: 20px;">📧</div>
+<h3 style="margin-bottom: 16px; font-size: 24px; color: var(--navy);">Check Your Email!</h3>
+<p style="font-size: 16px; line-height: 1.6; color: var(--text); margin-bottom: 24px;">
+We've sent your <strong>7-day GLP-1 meal plan</strong> to your inbox. It should arrive within the next few minutes.
+</p>
+<div style="background: var(--light-blue); border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid var(--blue);">
+<p style="font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 8px;">What's included:</p>
+<ul style="text-align: left; color: var(--text); font-size: 14px; line-height: 1.5; margin: 0; padding-left: 20px;">
+<li>7 days of GLP-1-friendly breakfast, lunch & dinner recipes</li>
+<li>Anti-nausea meal strategies for injection days</li>
+<li>Portion control guidelines for sustained weight loss</li>
+<li>Quick prep tips for busy schedules</li>
+</ul>
+</div>
+<p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
+Don't see it? Check your spam folder and add us to your contacts.
+</p>
+<button onclick="closeThankYouModal()" style="background: var(--blue); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; transition: all 0.2s;">
+Got it, thanks!
+</button>
+</div>
+</div>
+</div>
+</div>
 
 <!-- ═══ PRIVACY POLICY MODAL ═══ -->
 <div class="modal-overlay" id="modal-privacy" onclick="if(event.target===this)closeModal()">
@@ -1175,7 +1309,7 @@ function startStripeCheckout(priceId, buttonElement) {
 
       <div class="plans-container">
         <!-- Trial Plan -->
-        <div class="plan-card" data-plan="trial" onclick="selectPlan('trial')">
+        <div class="plan-card" data-plan="trial" onclick="gtag('event', 'modal_plan_card_click', {'event_category': 'conversion', 'event_label': 'trial_plan_card'}); selectPlan('trial')">
           <div class="plan-header">
             <h3 class="plan-title">Trial</h3>
             <div class="plan-price">
@@ -1201,11 +1335,11 @@ function startStripeCheckout(priceId, buttonElement) {
               <span>Basic symptom logger</span>
             </div>
           </div>
-          <button class="plan-select-btn" onclick="event.stopPropagation(); selectPlan('trial');">Start Free Trial</button>
+          <button class="plan-select-btn" onclick="event.stopPropagation(); gtag('event', 'modal_plan_select', {'event_category': 'conversion', 'event_label': 'start_free_trial', 'value': 0}); selectPlan('trial');">Start Free Trial</button>
         </div>
 
         <!-- Premium Plan -->
-        <div class="plan-card plan-recommended" data-plan="premium" onclick="selectPlan('premium')">
+        <div class="plan-card plan-recommended" data-plan="premium" onclick="gtag('event', 'modal_plan_card_click', {'event_category': 'conversion', 'event_label': 'premium_plan_card'}); selectPlan('premium')">
           <div class="plan-badge">Most Popular</div>
           <div class="plan-header">
             <h3 class="plan-title">Premium</h3>
@@ -1240,7 +1374,7 @@ function startStripeCheckout(priceId, buttonElement) {
               <span>Community access</span>
             </div>
           </div>
-          <button class="plan-select-btn" onclick="event.stopPropagation(); selectPlan('premium');">Get Premium Access</button>
+          <button class="plan-select-btn" onclick="event.stopPropagation(); gtag('event', 'modal_plan_select', {'event_category': 'conversion', 'event_label': 'get_premium_access', 'value': 12.99}); selectPlan('premium');">Get Premium Access</button>
         </div>
       </div>
     </div>
