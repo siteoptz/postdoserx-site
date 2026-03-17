@@ -200,10 +200,10 @@ async function handleGoogleSignIn(response) {
         redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
-      // New customer or no subscription - redirect to main page with account check modal
-      showMessage('No account found. Redirecting to package selection...', 'info');
+      // New customer or no subscription - redirect to signup (same as email authentication)
+      showMessage('No active subscription found. Redirecting to sign up...', 'success');
       setTimeout(() => {
-        window.location.href = '/?email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(name || '') + '&google=true&action=account-check';
+        window.location.href = '/#signup?email=' + encodeURIComponent(email);
       }, 2000);
     }
     
