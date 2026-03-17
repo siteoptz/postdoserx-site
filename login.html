@@ -172,6 +172,11 @@ async function handleGoogleSignIn(response) {
     // Check if user exists in GoHighLevel
     const customerStatus = await verifyGHLCustomer(email, isSignup);
     
+    console.log('🔍 GOOGLE OAUTH DEBUG: Customer status result:', customerStatus);
+    console.log('🔍 GOOGLE OAUTH DEBUG: isValidCustomer:', customerStatus.isValidCustomer);
+    console.log('🔍 GOOGLE OAUTH DEBUG: needsSubscription:', customerStatus.needsSubscription);
+    console.log('🔍 GOOGLE OAUTH DEBUG: tier:', customerStatus.tier);
+    
     if (isSignup) {
       // Signup flow - redirect to subscription page with user info
       showMessage('Google account verified! Redirecting to subscription...', 'success');
@@ -280,7 +285,7 @@ async function verifyGHLCustomer(email, isSignup = false) {
             
             console.log(`✅ User tier determined: ${tier}`);
             
-            return {
+            const result = {
               isValidCustomer: true,
               isNewCustomer: false,
               needsSubscription: false, // They have an account, no need for subscription signup
@@ -288,6 +293,9 @@ async function verifyGHLCustomer(email, isSignup = false) {
               name: fullName,
               ghlData: { tier: tier, tags: tags, contact: contact }
             };
+            
+            console.log('🎯 GHL VERIFICATION RESULT:', result);
+            return result;
           } else {
             console.log('👤 User not found in GHL');
             return {
