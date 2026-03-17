@@ -185,6 +185,7 @@ async function handleGoogleSignIn(response) {
       }, 1500);
     } else if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
       // Existing customer with valid subscription
+      console.log('🎯 TAKING DASHBOARD PATH - isValidCustomer:', customerStatus.isValidCustomer, 'needsSubscription:', customerStatus.needsSubscription);
       const authToken = generateAuthToken(email, googleId);
       const customerName = customerStatus.name || name || email.split('@')[0];
       showMessage(`Welcome back, ${customerName}! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
@@ -192,6 +193,9 @@ async function handleGoogleSignIn(response) {
         redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
+      // New customer or no subscription - redirect to signup (same as email authentication)
+      console.log('🚨 TAKING SIGNUP PATH - isValidCustomer:', customerStatus.isValidCustomer, 'needsSubscription:', customerStatus.needsSubscription);
+      console.log('🚨 REASON: needsSubscription is', customerStatus.needsSubscription, '|| !isValidCustomer is', !customerStatus.isValidCustomer);
       // New customer or no subscription - redirect to signup (same as email authentication)
       showMessage('No active subscription found. Redirecting to sign up...', 'success');
       setTimeout(() => {
