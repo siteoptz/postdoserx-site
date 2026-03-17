@@ -433,6 +433,8 @@ function redirectToDashboardWithTier(authToken, email, tier = 'trial', name = nu
   if (name) {
     dashboardUrl += `&name=${encodeURIComponent(name)}`;
   }
+  // Add overview hash at the end
+  dashboardUrl += '#overview';
   
   console.log('🚀 LOGIN DEBUG: Final redirect URL:', dashboardUrl);
   console.log('🚀 LOGIN DEBUG: Redirecting now...');
