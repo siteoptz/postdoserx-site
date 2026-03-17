@@ -219,18 +219,7 @@ async function verifyGHLCustomer(email, isSignup = false) {
         'siteoptz@proton.me' // Add any email you want to test with
       ];
       
-      const isDemo = demoCustomers.includes(email.toLowerCase());
-      console.log('Demo mode check for:', email, 'Result:', isDemo, 'Is signup:', isSignup);
-      
-      if (isDemo) {
-        return {
-          isValidCustomer: true,
-          isNewCustomer: false,
-          needsSubscription: false,
-          tier: 'premium', // Demo users get premium access
-          ghlData: { tier: 'premium', tags: ['demo', 'premium'] }
-        };
-      }
+      // Demo mode is disabled - skip demo user checks
       
       if (isSignup) {
         return {
