@@ -121,7 +121,7 @@ body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);backgro
 
 <script>
 // Google OAuth Configuration
-const GOOGLE_CLIENT_ID = '1027804657987-2k6ghjqm4j8h8a1234567890abcdefgh.apps.googleusercontent.com'; // Demo client ID - replace with yours
+const GOOGLE_CLIENT_ID = '301045903902-j9ibid26smhdclvi0454m355d0mroeir.apps.googleusercontent.com'; // PostDoseRX Production Client ID
 const GHL_API_ENDPOINT = '/api/verify-customer'; // Local API endpoint
 const IS_DEMO_MODE = false; // Set to false for production
 
@@ -188,10 +188,10 @@ async function handleGoogleSignIn(response) {
         redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
-      // New customer or no subscription - redirect to signup
-      showMessage('Welcome! Please complete your PostDoseRX Premium subscription first.', 'success');
+      // New customer or no subscription - redirect to main page with account check modal
+      showMessage('No account found. Redirecting to package selection...', 'info');
       setTimeout(() => {
-        window.location.href = '/#signup?email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(name || '');
+        window.location.href = '/?email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(name || '') + '&google=true&action=account-check';
       }, 2000);
     }
     
