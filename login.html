@@ -153,6 +153,12 @@ function initializeGoogleAuth() {
         text: 'continue_with'
       }
     );
+    
+    console.log('Google OAuth initialized successfully');
+  } else {
+    console.log('Google API not loaded yet, will retry...');
+    // Retry initialization after a short delay
+    setTimeout(initializeGoogleAuth, 500);
   }
 }
 
@@ -404,13 +410,24 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
 // Google Sign-In button click handler
 document.getElementById('google-signin').addEventListener('click', function() {
   if (typeof google !== 'undefined') {
-    google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // Show the backup Google button
-        document.getElementById('google-signin-backup').style.display = 'block';
-        showMessage('Please use the Google sign-in button below if the popup doesn\'t appear.', 'success');
-      }
-    });
+    console.log('Google sign-in button clicked');
+    try {
+      // Try to show the prompt
+      google.accounts.id.prompt((notification) => {
+        console.log('Google prompt notification:', notification);
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          // Show the backup Google button immediately
+          console.log('Showing backup Google button');
+          document.getElementById('google-signin-backup').style.display = 'block';
+          showMessage('Please use the Google sign-in button below.', 'info');
+        }
+      });
+    } catch (error) {
+      console.error('Error with Google prompt:', error);
+      // Show backup button if prompt fails
+      document.getElementById('google-signin-backup').style.display = 'block';
+      showMessage('Please use the Google sign-in button below.', 'info');
+    }
   } else {
     showMessage('Google authentication is loading. Please wait a moment and try again.', 'error');
   }
