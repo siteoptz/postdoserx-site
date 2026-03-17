@@ -193,13 +193,6 @@ async function handleGoogleSignIn(response) {
       setTimeout(() => {
         window.location.href = '/#signup?email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(name || '');
       }, 2000);
-    } else {
-      const authToken = generateAuthToken(email, googleId);
-      const customerName = customerStatus.name || name || email.split('@')[0];
-      showMessage(`Welcome back, ${customerName}! Authentication successful!`, 'success');
-      setTimeout(() => {
-        redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
-      }, 1500);
     }
     
   } catch (error) {
@@ -401,13 +394,6 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
       setTimeout(() => {
         window.location.href = '/#signup?email=' + encodeURIComponent(email);
       }, 2000);
-    } else {
-      const authToken = generateAuthToken(email, 'email_login');
-      const customerName = customerStatus.name || email.split('@')[0];
-      showMessage(`Welcome back, ${customerName}! Redirecting to your dashboard...`, 'success');
-      setTimeout(() => {
-        redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
-      }, 1500);
     }
     
   } catch (error) {
