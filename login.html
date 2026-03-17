@@ -272,9 +272,9 @@ async function verifyGHLCustomer(email, isSignup = false) {
             
             // Determine tier from tags
             let tier = 'trial'; // default
-            if (tags.some(tag => tag.includes('premium') || tag.includes('postdoserx-premium'))) {
+            if (tags.some(tag => tag.toLowerCase().includes('premium') || tag.includes('PostDoseRX-premium') || tag.includes('postdoserx-premium'))) {
               tier = 'premium';
-            } else if (tags.some(tag => tag.includes('trial') || tag.includes('postdoserx-trial'))) {
+            } else if (tags.some(tag => tag.toLowerCase().includes('trial') || tag.includes('PostDoseRX-trial') || tag.includes('postdoserx-trial'))) {
               tier = 'trial';
             }
             
