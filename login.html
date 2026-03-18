@@ -183,9 +183,13 @@ async function handleGoogleSignIn(response) {
       // POST-CHECKOUT FLOW: User completed Stripe checkout, now create GHL contact and redirect to dashboard
       showMessage('Google account verified! Creating your premium account...', 'success');
       
-      // Determine tier based on Stripe checkout (could be trial or premium)
-      // For now, assume premium since they completed checkout
-      const tier = 'premium';
+      // Determine tier based on Stripe checkout
+      // Check URL parameters for tier information, or determine from referrer
+      let tier = urlParams.get('tier') || 'premium'; // Default to premium if not specified
+      
+      // TODO: Ideally this should come from Stripe session metadata
+      // For now, we need to modify Stripe checkout URLs to include tier parameter
+      console.log('🎯 Post-checkout tier determined as:', tier);
       
       // Create contact in GHL with proper tags
       try {

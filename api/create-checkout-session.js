@@ -70,8 +70,8 @@ export default async function handler(req, res) {
           original_signup_date: new Date().toISOString()
         }
       };
-      // Update success URL for trial customers
-      sessionConfig.success_url = `https://app.postdoserx.com?checkout=success`;
+      // Update success URL for trial customers with tier parameter
+      sessionConfig.success_url = `https://app.postdoserx.com?checkout=success&tier=trial`;
       sessionConfig.cancel_url = `https://app.postdoserx.com?checkout=cancelled`;
     } else if (tier === 'premium') {
       // Premium customers: immediate $12.99/month payment
@@ -83,8 +83,8 @@ export default async function handler(req, res) {
           original_signup_date: new Date().toISOString()
         }
       };
-      // Update success URL for premium customers
-      sessionConfig.success_url = `https://app.postdoserx.com?checkout=success`;
+      // Update success URL for premium customers with tier parameter
+      sessionConfig.success_url = `https://app.postdoserx.com?checkout=success&tier=premium`;
       sessionConfig.cancel_url = `https://app.postdoserx.com?checkout=cancelled`;
     }
 

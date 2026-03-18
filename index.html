@@ -1989,7 +1989,7 @@ function selectPlan(planType) {
     
     // Redirect to Stripe payment link
     setTimeout(() => {
-      const premiumPaymentUrl = `https://buy.stripe.com/28E14mbhQ9xj4g5e5Z63K02?prefilled_email=${encodeURIComponent(email)}`;
+      const premiumPaymentUrl = `https://buy.stripe.com/28E14mbhQ9xj4g5e5Z63K02?prefilled_email=${encodeURIComponent(email)}&success_url=${encodeURIComponent('https://app.postdoserx.com?checkout=success&tier=premium')}`;
       window.location.href = premiumPaymentUrl;
     }, 1000);
     
