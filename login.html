@@ -222,11 +222,38 @@ async function handleGoogleSignIn(response) {
         window.location.href = dashboardUrl;
       }, 1500);
     } else if (isSignup) {
-      // Signup flow - redirect to subscription page with user info
-      showMessage('Google account verified! Redirecting to subscription...', 'success');
+      // SIGNUP FLOW: Create trial account immediately to avoid redirect loops
+      showMessage('Google account verified! Creating your trial account...', 'success');
+      
+      // Create contact in GHL with trial tags
+      try {
+        const ghlResponse = await fetch('/api/ghl-integration', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create_contact',
+            email: email,
+            name: name || '',
+            tier: 'trial' // Default to trial for new signups
+          })
+        });
+        
+        const ghlResult = await ghlResponse.json();
+        if (ghlResult.success) {
+          console.log('✅ Signup GHL contact created successfully for:', email);
+        } else {
+          console.error('❌ GHL contact creation failed:', ghlResult);
+        }
+      } catch (error) {
+        console.error('❌ GHL API error:', error);
+      }
+      
+      // Generate auth token and redirect to dashboard with trial access
+      const authToken = generateAuthToken(email, googleId);
       setTimeout(() => {
-        window.location.href = '/#signup?email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(name || '') + '&google=true';
-      }, 1500);
+        const dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name || '')}&tier=trial&new=true`;
+        window.location.href = dashboardUrl;
+      }, 2000);
     } else if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
       // Existing customer with valid subscription
       console.log('🎯 TAKING DASHBOARD PATH - isValidCustomer:', customerStatus.isValidCustomer, 'needsSubscription:', customerStatus.needsSubscription);
@@ -237,13 +264,38 @@ async function handleGoogleSignIn(response) {
         redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
-      // New customer or no subscription - redirect to signup (same as email authentication)
-      console.log('🚨 TAKING SIGNUP PATH - isValidCustomer:', customerStatus.isValidCustomer, 'needsSubscription:', customerStatus.needsSubscription);
-      console.log('🚨 REASON: needsSubscription is', customerStatus.needsSubscription, '|| !isValidCustomer is', !customerStatus.isValidCustomer);
-      // New customer or no subscription - redirect to signup (same as email authentication)
-      showMessage('No active subscription found. Redirecting to sign up...', 'success');
+      // NEW APPROACH: Create trial account immediately for Google OAuth users
+      console.log('🎯 Creating trial account for new Google OAuth user:', email);
+      showMessage('Google account verified! Creating your trial account...', 'success');
+      
+      // Create contact in GHL with trial tags
+      try {
+        const ghlResponse = await fetch('/api/ghl-integration', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create_contact',
+            email: email,
+            name: name || '',
+            tier: 'trial' // Default to trial for new users
+          })
+        });
+        
+        const ghlResult = await ghlResponse.json();
+        if (ghlResult.success) {
+          console.log('✅ Trial GHL contact created successfully for:', email);
+        } else {
+          console.error('❌ GHL contact creation failed:', ghlResult);
+        }
+      } catch (error) {
+        console.error('❌ GHL API error:', error);
+      }
+      
+      // Generate auth token and redirect to dashboard with trial access
+      const authToken = generateAuthToken(email, googleId);
       setTimeout(() => {
-        window.location.href = '/#signup?email=' + encodeURIComponent(email);
+        const dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name || '')}&tier=trial&new=true`;
+        window.location.href = dashboardUrl;
       }, 2000);
     }
     
@@ -431,11 +483,19 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
         redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
       }, 1500);
     } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
-      // New customer or no subscription - redirect to signup
-      showMessage('No active subscription found. Redirecting to sign up...', 'success');
-      setTimeout(() => {
-        window.location.href = '/#signup?email=' + encodeURIComponent(email);
-      }, 2000);
+      // EMAIL LOGIN: For new users, suggest they use Google OAuth instead of creating loops
+      showMessage('No account found. Please use "Continue with Google" above to create your account.', 'error');
+      
+      // Highlight the Google OAuth button to guide user
+      const googleButton = document.getElementById('google-signin-button');
+      if (googleButton) {
+        googleButton.style.border = '2px solid var(--magenta)';
+        googleButton.style.backgroundColor = 'var(--magenta-light)';
+        setTimeout(() => {
+          googleButton.style.border = '';
+          googleButton.style.backgroundColor = '';
+        }, 5000);
+      }
     }
     
   } catch (error) {
