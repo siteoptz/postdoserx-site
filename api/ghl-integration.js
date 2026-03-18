@@ -4,9 +4,9 @@
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 const GHL_API_VERSION = 'v1';
 
-// Environment variables (set in Vercel dashboard)
-const GHL_API_KEY = process.env.GHL_API_KEY;
-const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
+// Use hardcoded values that work (matching login.html)
+const GHL_API_KEY = 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
+const GHL_LOCATION_ID = 'ECu5ScdYFmB0WnhvYoBU';
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
 
 // Create contact in GoHighLevel
 async function createGHLContact(email, name = '', tier = 'trial', phone = '') {
-  const url = `${GHL_API_BASE}/${GHL_API_VERSION}/contacts/`;
+  const url = `${GHL_API_BASE}/contacts/`;
   
   const contactData = {
     email,
@@ -110,6 +110,7 @@ async function createGHLContact(email, name = '', tier = 'trial', phone = '') {
     headers: {
       'Authorization': `Bearer ${GHL_API_KEY}`,
       'Content-Type': 'application/json',
+      'Version': '2021-07-28'
     },
     body: JSON.stringify(contactData)
   });
@@ -124,12 +125,13 @@ async function createGHLContact(email, name = '', tier = 'trial', phone = '') {
 
 // Validate user tier from GoHighLevel
 async function validateUserTier(email) {
-  const url = `${GHL_API_BASE}/${GHL_API_VERSION}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
+  const url = `${GHL_API_BASE}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
   
   const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${GHL_API_KEY}`,
       'Content-Type': 'application/json',
+      'Version': '2021-07-28'
     }
   });
 
@@ -166,13 +168,14 @@ async function validateUserTier(email) {
 
 // Upgrade user tier from trial to premium
 async function upgradeUserTier(email) {
-  const url = `${GHL_API_BASE}/${GHL_API_VERSION}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
+  const url = `${GHL_API_BASE}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
   
   // First, find the contact
   const searchResponse = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${GHL_API_KEY}`,
       'Content-Type': 'application/json',
+      'Version': '2021-07-28'
     }
   });
 
@@ -190,7 +193,7 @@ async function upgradeUserTier(email) {
   const contactId = contact.id;
 
   // Update contact tags and custom fields
-  const updateUrl = `${GHL_API_BASE}/${GHL_API_VERSION}/contacts/${contactId}`;
+  const updateUrl = `${GHL_API_BASE}/contacts/${contactId}`;
   
   const updatedTags = contact.tags.filter(tag => !tag.includes('trial')).concat([
     'postdoserx-premium',
@@ -217,6 +220,7 @@ async function upgradeUserTier(email) {
     headers: {
       'Authorization': `Bearer ${GHL_API_KEY}`,
       'Content-Type': 'application/json',
+      'Version': '2021-07-28'
     },
     body: JSON.stringify(updateData)
   });
