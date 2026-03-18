@@ -48,7 +48,7 @@ export default async function handler(req, res) {
         price: priceId,
         quantity: 1,
       }],
-      success_url: `https://postdoserx.com/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `https://app.postdoserx.com?checkout=success&tier=${tier || 'premium'}`,
       cancel_url: `https://app.postdoserx.com?checkout=cancelled`,
       customer_email: email,
       metadata: {
