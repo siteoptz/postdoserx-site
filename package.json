@@ -1,0 +1,24 @@
+{
+  "name": "postdoserx-site",
+  "version": "1.0.0",
+  "description": "PostDoseRX GLP-1 Support Platform",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "stripe": "^14.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "postdoserx-site"
+  },
+  "keywords": ["glp-1", "meal-planning", "health", "stripe", "subscription"],
+  "author": "SiteOptZ",
+  "license": "MIT"
+}

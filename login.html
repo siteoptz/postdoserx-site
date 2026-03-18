@@ -165,7 +165,9 @@ async function handleGoogleSignIn(response) {
     
     console.log('Google user:', { email, name });
     
-    // Check if this is a signup flow or sign-in flow
+    // Check if this is a post-checkout flow, signup flow or sign-in flow
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPostCheckout = urlParams.get('post-checkout') === 'true';
     const isSignup = window.isSignupFlow || false;
     window.isSignupFlow = false; // Reset the flag
     
@@ -177,7 +179,45 @@ async function handleGoogleSignIn(response) {
     console.log('🔍 GOOGLE OAUTH DEBUG: needsSubscription:', customerStatus.needsSubscription);
     console.log('🔍 GOOGLE OAUTH DEBUG: tier:', customerStatus.tier);
     
-    if (isSignup) {
+    if (isPostCheckout) {
+      // POST-CHECKOUT FLOW: User completed Stripe checkout, now create GHL contact and redirect to dashboard
+      showMessage('Google account verified! Creating your premium account...', 'success');
+      
+      // Determine tier based on Stripe checkout (could be trial or premium)
+      // For now, assume premium since they completed checkout
+      const tier = 'premium';
+      
+      // Create contact in GHL with proper tags
+      try {
+        const ghlResponse = await fetch('/api/ghl-integration', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create_contact',
+            email: email,
+            name: name || '',
+            tier: tier
+          })
+        });
+        
+        const ghlResult = await ghlResponse.json();
+        if (ghlResult.success) {
+          console.log('✅ Post-checkout GHL contact created successfully with', `postdoserx-${tier}`, 'tag');
+        } else {
+          console.error('❌ GHL contact creation failed:', ghlResult);
+        }
+      } catch (error) {
+        console.error('❌ GHL API error:', error);
+      }
+      
+      // Generate auth token and redirect to dashboard
+      const authToken = generateAuthToken(email, googleId);
+      setTimeout(() => {
+        const redirectUrl = urlParams.get('redirect') || 'https://app.postdoserx.com';
+        const dashboardUrl = `${redirectUrl}?token=${authToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name || '')}&tier=${tier}&new=true`;
+        window.location.href = dashboardUrl;
+      }, 1500);
+    } else if (isSignup) {
       // Signup flow - redirect to subscription page with user info
       showMessage('Google account verified! Redirecting to subscription...', 'success');
       setTimeout(() => {
