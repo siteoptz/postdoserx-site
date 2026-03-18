@@ -1257,13 +1257,15 @@ function startStripeCheckout(priceId, buttonElement) {
   }
   
   try {
-    // Redirect directly to Stripe Payment Link for immediate checkout
-    console.log('Redirecting to:', paymentLinkUrl);
-    window.location.href = paymentLinkUrl;
+    // Use API-created checkout sessions with proper success URLs instead of raw payment links
+    console.log('Creating checkout session with priceId:', priceId);
+    const tierName = priceId === 'price_1SrSZbAYjb6yVLnRHNOJVKy2' ? 'trial' : 'premium';
+    
+    createCheckoutSession(email, '', tierName);
     
   } catch (error) {
-    console.error('Redirect error:', error);
-    alert('Unable to redirect to checkout. Please try again.');
+    console.error('Checkout session error:', error);
+    alert('Unable to create checkout session. Please try again.');
     buttonElement.textContent = originalText;
     buttonElement.disabled = false;
   }
@@ -2275,13 +2277,13 @@ document.getElementById('email-check-form').addEventListener('submit', async fun
           window.location.href = `https://app.postdoserx.com?tier=premium&email=${encodeURIComponent(email)}`;
         }, 2000);
       } else {
-        // Trial user - allow upgrade but redirect to sign in for existing account
-        showEmailCheckMessage('You already have an account! Redirecting you to sign in...', 'info');
+        // Trial user - redirect directly to dashboard (avoid login.html loop)
+        showEmailCheckMessage('You already have a trial account! Redirecting to your dashboard...', 'info');
         
         setTimeout(() => {
           closeSignupModal();
-          // Redirect to login page, not dashboard directly
-          window.location.href = `login.html?email=${encodeURIComponent(email)}&message=existing-user`;
+          // Send existing trial users directly to dashboard
+          window.location.href = `https://app.postdoserx.com?tier=trial&email=${encodeURIComponent(email)}`;
         }, 2000);
       }
     } else {
@@ -2347,11 +2349,11 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
         }, 2000);
         return;
       } else {
-        // Trial user - redirect to login
-        showSignupMessage('You already have an account! Please sign in instead.', 'error');
+        // Trial user - redirect directly to dashboard (avoid login.html loop)
+        showSignupMessage('You already have a trial account! Redirecting to your dashboard...', 'info');
         setTimeout(() => {
           closeSignupModal();
-          window.location.href = `login.html?email=${encodeURIComponent(email)}&message=existing-user`;
+          window.location.href = `https://app.postdoserx.com?tier=trial&email=${encodeURIComponent(email)}`;
         }, 2000);
         return;
       }
@@ -2447,24 +2449,12 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
 function initiateStripeCheckout(priceId, email, name) {
   console.log('Initiating Stripe checkout with:', { priceId, email, name });
   
-  // Use the existing Stripe payment links with customer email
-  let paymentLinkUrl;
+  // Determine tier from price ID
+  const tierName = priceId === 'price_1SrSZbAYjb6yVLnRHNOJVKy2' ? 'trial' : 'premium';
   
-  if (priceId === 'price_1SrSZbAYjb6yVLnRHNOJVKy2') {
-    paymentLinkUrl = 'https://buy.stripe.com/aFa9AS2Lk10NdQF8LF63K00';
-  } else if (priceId === 'price_1SrSYIAYjb6yVLnRYPJTOU5A') {
-    paymentLinkUrl = 'https://buy.stripe.com/28E14mbhQ9xj4g5e5Z63K02';
-  } else {
-    console.error('Unknown price ID:', priceId);
-    return;
-  }
-  
-  // Add customer email as URL parameter if Stripe supports it
-  if (email) {
-    paymentLinkUrl += `?prefilled_email=${encodeURIComponent(email)}`;
-  }
-  
-  window.location.href = paymentLinkUrl;
+  // Use API-created checkout sessions with proper success URLs
+  console.log('Creating checkout session for tier:', tierName);
+  createCheckoutSession(email, name, tierName);
 }
 
 // Close modal when clicking outside
