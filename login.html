@@ -233,7 +233,7 @@ async function handleGoogleSignIn(response) {
     
     // Redirect to dashboard - always go to app.postdoserx.com, ignore redirect param for post-checkout
     setTimeout(() => {
-      const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=${isPostCheckout || isSignup}#overview`;
+      const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=${isPostCheckout || isSignup}&userId=${user.id}`;
       console.log('🚀 Redirecting to dashboard:', dashboardUrl);
       window.location.href = dashboardUrl;
     }, 1500);
@@ -422,7 +422,7 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
       showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
       
       setTimeout(() => {
-        const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}#overview`;
+        const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&userId=${user.id}`;
         console.log('🚀 Email login - redirecting to dashboard:', dashboardUrl);
         window.location.href = dashboardUrl;
       }, 1500);
@@ -470,13 +470,12 @@ function generateAuthToken(email, provider) {
   return 'auth_' + btoa(JSON.stringify(tokenData));
 }
 
-function redirectToDashboard(authToken, email, name = null) {
+function redirectToDashboard(authToken, email, name = null, tier = 'trial') {
   // Always redirect to app.postdoserx.com - the official dashboard URL
-  let dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}`;
+  let dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&tier=${tier}`;
   if (name) {
     dashboardUrl += `&name=${encodeURIComponent(name)}`;
   }
-  dashboardUrl += '#overview';
   
   console.log('🚀 Utility redirect to dashboard:', dashboardUrl);
   window.location.href = dashboardUrl;
@@ -486,12 +485,10 @@ function redirectToDashboardWithTier(authToken, email, tier = 'trial', name = nu
   console.log('🎯 redirectToDashboardWithTier called with:', { authToken: authToken?.substring(0, 20) + '...', email, tier, name });
   
   // Always use app.postdoserx.com - ignore redirect param to prevent loops
-  let dashboardUrl = `https://app.postdoserx.com?tier=${tier}&email=${encodeURIComponent(email)}&token=${authToken}`;
+  let dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&tier=${tier}`;
   if (name) {
     dashboardUrl += `&name=${encodeURIComponent(name)}`;
   }
-  // Add overview hash at the end
-  dashboardUrl += '#overview';
   
   console.log('🚀 LOGIN DEBUG: Final redirect URL:', dashboardUrl);
   console.log('🚀 LOGIN DEBUG: Redirecting now...');
