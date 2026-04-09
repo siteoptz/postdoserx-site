@@ -198,9 +198,29 @@ async function handleGoogleSignIn(response) {
       }
     }
 
-    // Generate auth token using existing method
-    const token = generateAuthToken(email, googleId);
-    const userName = name?.split(' ')[0] || email.split('@')[0];
+    // Call our new authentication API
+    const authResponse = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
+        email,
+        googleId,
+        name,
+        tier,
+        ghlContactId
+      })
+    });
+
+    const authResult = await authResponse.json();
+    
+    if (!authResult.success) {
+      throw new Error(authResult.error || 'Authentication failed');
+    }
+
+    const { user, token } = authResult.data;
+    const userName = user.profile?.first_name || name?.split(' ')[0] || email.split('@')[0];
     
     // Show success message
     if (isPostCheckout) {
@@ -213,7 +233,7 @@ async function handleGoogleSignIn(response) {
     
     // Redirect to dashboard - always go to app.postdoserx.com, ignore redirect param for post-checkout
     setTimeout(() => {
-      const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${tier}&new=${isPostCheckout || isSignup}#overview`;
+      const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=${isPostCheckout || isSignup}#overview`;
       console.log('🚀 Redirecting to dashboard:', dashboardUrl);
       window.location.href = dashboardUrl;
     }, 1500);
@@ -381,18 +401,28 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     submitBtn.disabled = true;
     clearMessage();
     
-    // Check if email exists in GoHighLevel using existing verification
-    const customerStatus = await verifyGHLCustomer(email, false);
+    // Try to authenticate with our API
+    const authResponse = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
+        email,
+        tier: 'trial' // Default to trial for email-only signups
+      })
+    });
+
+    const authResult = await authResponse.json();
     
-    if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
-      // Existing customer with valid subscription
-      const authToken = generateAuthToken(email, 'email_login');
-      const customerName = customerStatus.name || email.split('@')[0];
+    if (authResult.success) {
+      const { user, token } = authResult.data;
+      const userName = user.profile?.first_name || email.split('@')[0];
       
-      showMessage(`Welcome back, ${customerName}! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
+      showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
       
       setTimeout(() => {
-        const dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(customerName)}&tier=${customerStatus.tier}#overview`;
+        const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}#overview`;
         console.log('🚀 Email login - redirecting to dashboard:', dashboardUrl);
         window.location.href = dashboardUrl;
       }, 1500);
