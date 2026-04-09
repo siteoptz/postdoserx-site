@@ -48,8 +48,8 @@ export default async function handler(req, res) {
         price: priceId,
         quantity: 1,
       }],
-      success_url: `https://app.postdoserx.com?checkout=success&tier=${tier || 'premium'}`,
-      cancel_url: `https://app.postdoserx.com?checkout=cancelled`,
+      success_url: `https://postdoserx.com/success.html?tier=${tier || 'premium'}`,
+      cancel_url: `https://postdoserx.com/?checkout=cancelled`,
       customer_email: email,
       metadata: {
         customer_name: name || '',
@@ -71,8 +71,8 @@ export default async function handler(req, res) {
         }
       };
       // Update success URL for trial customers with tier parameter
-      sessionConfig.success_url = `https://app.postdoserx.com?checkout=success&tier=trial`;
-      sessionConfig.cancel_url = `https://app.postdoserx.com?checkout=cancelled`;
+      sessionConfig.success_url = `https://postdoserx.com/success.html?tier=trial`;
+      sessionConfig.cancel_url = `https://postdoserx.com/?checkout=cancelled`;
     } else if (tier === 'premium') {
       // Premium customers: immediate $12.99/month payment
       // No trial period for premium (they pay immediately)
@@ -84,8 +84,8 @@ export default async function handler(req, res) {
         }
       };
       // Update success URL for premium customers with tier parameter
-      sessionConfig.success_url = `https://app.postdoserx.com?checkout=success&tier=premium`;
-      sessionConfig.cancel_url = `https://app.postdoserx.com?checkout=cancelled`;
+      sessionConfig.success_url = `https://postdoserx.com/success.html?tier=premium`;
+      sessionConfig.cancel_url = `https://postdoserx.com/?checkout=cancelled`;
     }
 
     console.log('Creating checkout session:', {

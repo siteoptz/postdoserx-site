@@ -106,7 +106,7 @@ h1{font-family:'DM Serif Display',Georgia,serif;font-size:42px;color:var(--navy)
       Continue with Google
     </button>
     
-    <p class="setup-note">Or skip for now and <a href="https://app.postdoserx.com" class="manual-link">access your dashboard manually</a></p>
+    <p class="setup-note">Or skip for now and <a href="/login.html?post-checkout=true" class="manual-link">complete setup manually</a></p>
   </div>
   
   <p class="support-note">
@@ -138,8 +138,8 @@ console.log('PostDoseRX subscription successful');
 
 <script>
 // Google OAuth Configuration
-const GOOGLE_CLIENT_ID = '1027804657987-2k6ghjqm4j8h8a1234567890abcdefgh.apps.googleusercontent.com'; // Demo client ID - replace with real one
-const IS_DEMO_MODE = true; // Set to false for production
+const GOOGLE_CLIENT_ID = '301045903902-j9ibid26smhdclvi0454m355d0mroeir.apps.googleusercontent.com'; // PostDoseRX Production Client ID
+const IS_DEMO_MODE = false; // Set to false for production
 
 // Initialize Google OAuth
 function initializeGoogleAuth() {
@@ -170,26 +170,67 @@ async function handleGoogleSignUp(response) {
     const googleId = payload.sub;
     
     console.log('Google user after payment:', { email, name });
-    showMessage('Account created successfully! Redirecting to dashboard...', 'success');
     
-    // Create auth token for new premium subscriber
-    const authToken = generateAuthToken(email, googleId, true);
+    // Get tier from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const tier = urlParams.get('tier') || 'premium'; // Default to premium for post-checkout
     
-    // Store user info for dashboard
-    const userInfo = {
-      email,
-      name,
-      provider: 'google',
-      subscriptionStatus: 'active',
-      signupDate: new Date().toISOString(),
-      source: 'post_checkout'
-    };
+    // Determine GHL contact ID if needed
+    let ghlContactId = null;
     
-    localStorage.setItem('postdoserx_user', JSON.stringify(userInfo));
+    // Create/update GHL contact for new post-checkout user
+    try {
+      const ghlResponse = await fetch('/api/ghl-integration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_contact',
+          email: email,
+          name: name || '',
+          tier: tier
+        })
+      });
+      
+      const ghlResult = await ghlResponse.json();
+      if (ghlResult.success) {
+        ghlContactId = ghlResult.contactId;
+        console.log('✅ GHL contact created successfully:', ghlContactId);
+      }
+    } catch (error) {
+      console.error('❌ GHL API error:', error);
+    }
+
+    // Call our authentication API
+    const authResponse = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
+        email,
+        googleId,
+        name,
+        tier,
+        ghlContactId
+      })
+    });
+
+    const authResult = await authResponse.json();
     
-    // Redirect to dashboard with auth token
+    if (!authResult.success) {
+      throw new Error(authResult.error || 'Authentication failed');
+    }
+
+    const { user, token } = authResult.data;
+    const userName = user.profile?.first_name || name?.split(' ')[0] || email.split('@')[0];
+    
+    showMessage(`Welcome to PostDoseRX ${tier === 'premium' ? 'Premium' : ''}, ${userName}! Setting up your dashboard...`, 'success');
+    
+    // Redirect to dashboard with proper tier
     setTimeout(() => {
-      redirectToDashboard(authToken, email, name);
+      const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=true#overview`;
+      console.log('🚀 Redirecting to dashboard:', dashboardUrl);
+      window.location.href = dashboardUrl;
     }, 1500);
     
   } catch (error) {
@@ -214,31 +255,6 @@ document.getElementById('google-signup').addEventListener('click', function() {
 });
 
 // Utility functions
-function generateAuthToken(email, provider, isPremium = true) {
-  const timestamp = Date.now();
-  const tokenData = {
-    email: email,
-    provider: provider,
-    timestamp: timestamp,
-    expires: timestamp + (24 * 60 * 60 * 1000), // 24 hours
-    isPremium: isPremium,
-    source: 'post_checkout'
-  };
-  
-  // Simple token generation (in production, use proper JWT with server-side signing)
-  return 'auth_' + btoa(JSON.stringify(tokenData));
-}
-
-function redirectToDashboard(authToken, email, name = null) {
-  // Use app subdomain for dashboard
-  let dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&new=true`;
-  
-  if (name) {
-    dashboardUrl += `&name=${encodeURIComponent(name)}`;
-  }
-  
-  window.location.href = dashboardUrl;
-}
 
 function showMessage(text, type = 'error') {
   const container = document.getElementById('message-container');
