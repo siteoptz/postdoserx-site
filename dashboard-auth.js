@@ -165,12 +165,12 @@ class DashboardAuth {
       try {
         const isValid = await this.validateToken();
         if (!isValid) {
-          console.warn('Periodic token validation failed - session may have expired');
-          // Don't automatically redirect - let user continue working
+          console.warn('⚠️ Periodic token validation failed - session may have expired, but continuing');
+          // Never automatically redirect - let user continue working
         }
       } catch (error) {
-        console.warn('Periodic token validation error:', error);
-        // Don't redirect on API failures
+        console.warn('⚠️ Periodic token validation error, but continuing:', error);
+        // Never redirect on API failures - dashboard should remain functional
       }
     }, 30 * 60 * 1000); // 30 minutes
   }
@@ -212,15 +212,16 @@ class DashboardAuth {
       headers
     });
 
-    // Handle authentication errors
+    // Handle authentication errors - but don't auto-redirect anymore
     if (response.status === 401) {
-      this.redirectToLogin('Authentication required');
-      throw new Error('Authentication failed');
+      console.warn('⚠️ API authentication failed, but not redirecting automatically:', url);
+      throw new Error('Authentication failed - please refresh the page if needed');
     }
 
     if (response.status === 403) {
       // Permission denied - possibly tier restriction
-      const result = await response.json();
+      console.warn('⚠️ API access denied:', url);
+      const result = await response.json().catch(() => ({}));
       throw new Error(result.error || 'Access denied');
     }
 
@@ -267,10 +268,15 @@ async function initializeDashboardAuth() {
   const isAuthenticated = await dashboardAuth.init();
   
   if (isAuthenticated) {
+    // Set up periodic token validation (non-disruptive)
+    dashboardAuth.setupTokenValidation();
+    
     // Dispatch custom event for other scripts to listen to
     window.dispatchEvent(new CustomEvent('dashboardAuthReady', {
       detail: { user: dashboardAuth.getUser() }
     }));
+    
+    console.log('🎉 Dashboard authentication fully initialized');
   }
   
   return isAuthenticated;
