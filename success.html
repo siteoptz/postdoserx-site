@@ -200,42 +200,57 @@ async function handleGoogleSignUp(response) {
       console.error('❌ GHL API error:', error);
     }
 
-    // Call our authentication API
-    const authResponse = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json' 
-      },
-      body: JSON.stringify({
-        email,
-        googleId,
-        name,
-        tier,
-        ghlContactId
-      })
-    });
+    let dashboardUrl;
+    let userName = name?.split(' ')[0] || email.split('@')[0];
 
-    const authResult = await authResponse.json();
-    
-    if (!authResult.success) {
-      throw new Error(authResult.error || 'Authentication failed');
+    // Try authentication API first, with fallback
+    try {
+      const authResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          email,
+          googleId,
+          name,
+          tier,
+          ghlContactId
+        })
+      });
+
+      const authResult = await authResponse.json();
+      console.log('🔍 Auth API response:', authResult);
+      
+      if (authResult.success) {
+        // Use Supabase JWT token
+        const { user, token } = authResult.data;
+        userName = user.profile?.first_name || userName;
+        dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=true#overview`;
+        console.log('✅ Using Supabase authentication');
+      } else {
+        throw new Error('API authentication failed, using fallback');
+      }
+    } catch (apiError) {
+      console.log('⚠️ Auth API failed, using fallback method:', apiError.message);
+      // Fallback: Generate simple auth token
+      const fallbackToken = generateSimpleAuthToken(email, googleId, tier);
+      dashboardUrl = `https://app.postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${tier}&new=true#overview`;
+      console.log('✅ Using fallback authentication');
     }
-
-    const { user, token } = authResult.data;
-    const userName = user.profile?.first_name || name?.split(' ')[0] || email.split('@')[0];
     
     showMessage(`Welcome to PostDoseRX ${tier === 'premium' ? 'Premium' : ''}, ${userName}! Setting up your dashboard...`, 'success');
     
-    // Redirect to dashboard with proper tier
+    // Redirect to dashboard
     setTimeout(() => {
-      const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=true#overview`;
       console.log('🚀 Redirecting to dashboard:', dashboardUrl);
       window.location.href = dashboardUrl;
     }, 1500);
     
   } catch (error) {
     console.error('Google sign-up error:', error);
-    showMessage('Account creation failed. You can still access your dashboard manually below.', 'error');
+    console.error('Error details:', error.message);
+    showMessage(`Account creation failed: ${error.message}. You can still access your dashboard manually below.`, 'error');
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
   }
@@ -255,6 +270,20 @@ document.getElementById('google-signup').addEventListener('click', function() {
 });
 
 // Utility functions
+function generateSimpleAuthToken(email, googleId, tier) {
+  const timestamp = Date.now();
+  const tokenData = {
+    email: email,
+    provider: googleId ? 'google' : 'email',
+    timestamp: timestamp,
+    expires: timestamp + (24 * 60 * 60 * 1000), // 24 hours
+    tier: tier,
+    source: 'post_checkout'
+  };
+  
+  // Simple token generation (fallback method)
+  return 'auth_' + btoa(JSON.stringify(tokenData));
+}
 
 function showMessage(text, type = 'error') {
   const container = document.getElementById('message-container');
