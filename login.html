@@ -165,33 +165,17 @@ async function handleGoogleSignIn(response) {
     
     console.log('Google user:', { email, name });
     
-    // Check if this is a post-checkout flow, signup flow or sign-in flow
+    // Check URL parameters for context
     const urlParams = new URLSearchParams(window.location.search);
     const isPostCheckout = urlParams.get('post-checkout') === 'true';
     const isSignup = window.isSignupFlow || false;
-    window.isSignupFlow = false; // Reset the flag
+    const tier = urlParams.get('tier') || (isPostCheckout ? 'premium' : 'trial');
     
-    // Check if user exists in GoHighLevel
-    const customerStatus = await verifyGHLCustomer(email, isSignup);
+    // Determine GHL contact ID if needed
+    let ghlContactId = null;
     
-    console.log('🔍 GOOGLE OAUTH DEBUG: Customer status result:', customerStatus);
-    console.log('🔍 GOOGLE OAUTH DEBUG: isValidCustomer:', customerStatus.isValidCustomer);
-    console.log('🔍 GOOGLE OAUTH DEBUG: needsSubscription:', customerStatus.needsSubscription);
-    console.log('🔍 GOOGLE OAUTH DEBUG: tier:', customerStatus.tier);
-    
-    if (isPostCheckout) {
-      // POST-CHECKOUT FLOW: User completed Stripe checkout, now create GHL contact and redirect to dashboard
-      showMessage('Google account verified! Creating your premium account...', 'success');
-      
-      // Determine tier based on Stripe checkout
-      // Check URL parameters for tier information, or determine from referrer
-      let tier = urlParams.get('tier') || 'premium'; // Default to premium if not specified
-      
-      // TODO: Ideally this should come from Stripe session metadata
-      // For now, we need to modify Stripe checkout URLs to include tier parameter
-      console.log('🎯 Post-checkout tier determined as:', tier);
-      
-      // Create contact in GHL with proper tags
+    // Create/update GHL contact for new users or post-checkout
+    if (isPostCheckout || isSignup) {
       try {
         const ghlResponse = await fetch('/api/ghl-integration', {
           method: 'POST',
@@ -206,98 +190,53 @@ async function handleGoogleSignIn(response) {
         
         const ghlResult = await ghlResponse.json();
         if (ghlResult.success) {
-          console.log('✅ Post-checkout GHL contact created successfully with', `postdoserx-${tier}`, 'tag');
-        } else {
-          console.error('❌ GHL contact creation failed:', ghlResult);
+          ghlContactId = ghlResult.contactId;
+          console.log('✅ GHL contact created successfully:', ghlContactId);
         }
       } catch (error) {
         console.error('❌ GHL API error:', error);
       }
-      
-      // Generate auth token and redirect to dashboard
-      const authToken = generateAuthToken(email, googleId);
-      setTimeout(() => {
-        const redirectUrl = urlParams.get('redirect') || 'https://app.postdoserx.com';
-        const dashboardUrl = `${redirectUrl}?token=${authToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name || '')}&tier=${tier}&new=true`;
-        window.location.href = dashboardUrl;
-      }, 1500);
-    } else if (isSignup) {
-      // SIGNUP FLOW: Create trial account immediately to avoid redirect loops
-      showMessage('Google account verified! Creating your trial account...', 'success');
-      
-      // Create contact in GHL with trial tags
-      try {
-        const ghlResponse = await fetch('/api/ghl-integration', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'create_contact',
-            email: email,
-            name: name || '',
-            tier: 'trial' // Default to trial for new signups
-          })
-        });
-        
-        const ghlResult = await ghlResponse.json();
-        if (ghlResult.success) {
-          console.log('✅ Signup GHL contact created successfully for:', email);
-        } else {
-          console.error('❌ GHL contact creation failed:', ghlResult);
-        }
-      } catch (error) {
-        console.error('❌ GHL API error:', error);
-      }
-      
-      // Generate auth token and redirect to dashboard with trial access
-      const authToken = generateAuthToken(email, googleId);
-      setTimeout(() => {
-        const dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name || '')}&tier=trial&new=true`;
-        window.location.href = dashboardUrl;
-      }, 2000);
-    } else if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
-      // Existing customer with valid subscription
-      console.log('🎯 TAKING DASHBOARD PATH - isValidCustomer:', customerStatus.isValidCustomer, 'needsSubscription:', customerStatus.needsSubscription);
-      const authToken = generateAuthToken(email, googleId);
-      const customerName = customerStatus.name || name || email.split('@')[0];
-      showMessage(`Welcome back, ${customerName}! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
-      setTimeout(() => {
-        redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
-      }, 1500);
-    } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
-      // NEW APPROACH: Create trial account immediately for Google OAuth users
-      console.log('🎯 Creating trial account for new Google OAuth user:', email);
-      showMessage('Google account verified! Creating your trial account...', 'success');
-      
-      // Create contact in GHL with trial tags
-      try {
-        const ghlResponse = await fetch('/api/ghl-integration', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'create_contact',
-            email: email,
-            name: name || '',
-            tier: 'trial' // Default to trial for new users
-          })
-        });
-        
-        const ghlResult = await ghlResponse.json();
-        if (ghlResult.success) {
-          console.log('✅ Trial GHL contact created successfully for:', email);
-        } else {
-          console.error('❌ GHL contact creation failed:', ghlResult);
-        }
-      } catch (error) {
-        console.error('❌ GHL API error:', error);
-      }
-      
-      // Generate auth token and redirect to dashboard with trial access
-      const authToken = generateAuthToken(email, googleId);
-      setTimeout(() => {
-        const dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name || '')}&tier=trial&new=true`;
-        window.location.href = dashboardUrl;
-      }, 2000);
     }
+
+    // Call our new authentication API
+    const authResponse = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
+        email,
+        googleId,
+        name,
+        tier,
+        ghlContactId
+      })
+    });
+
+    const authResult = await authResponse.json();
+    
+    if (!authResult.success) {
+      throw new Error(authResult.error || 'Authentication failed');
+    }
+
+    const { user, token } = authResult.data;
+    const userName = user.profile?.first_name || name?.split(' ')[0] || email.split('@')[0];
+    
+    // Show success message
+    if (isPostCheckout) {
+      showMessage(`Welcome to PostDoseRX Premium, ${userName}! Setting up your dashboard...`, 'success');
+    } else if (isSignup) {
+      showMessage(`Welcome to PostDoseRX, ${userName}! Starting your free trial...`, 'success');
+    } else {
+      showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
+    }
+    
+    // Redirect to dashboard - always go to app.postdoserx.com, ignore redirect param for post-checkout
+    setTimeout(() => {
+      const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=${isPostCheckout || isSignup}#overview`;
+      console.log('🚀 Redirecting to dashboard:', dashboardUrl);
+      window.location.href = dashboardUrl;
+    }, 1500);
     
   } catch (error) {
     console.error('Google sign-in error:', error);
@@ -462,28 +401,34 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     submitBtn.disabled = true;
     clearMessage();
     
-    // Check if email exists in GoHighLevel
-    console.log('🔍 LOGIN DEBUG: Starting customer verification for:', email);
-    const customerStatus = await verifyGHLCustomer(email, false);
-    console.log('📋 LOGIN DEBUG: Customer status result:', customerStatus);
-    
-    if (customerStatus.isValidCustomer && !customerStatus.needsSubscription) {
-      // Existing customer with valid subscription
-      const authToken = generateAuthToken(email, 'email_login');
-      const customerName = customerStatus.name || email.split('@')[0];
-      console.log('✅ LOGIN DEBUG: Valid customer found, preparing redirect:', {
-        customerName,
-        tier: customerStatus.tier,
+    // Try to authenticate with our API
+    const authResponse = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
         email,
-        authToken: authToken.substring(0, 20) + '...'
-      });
-      showMessage(`Welcome back, ${customerName}! Redirecting to your ${customerStatus.tier || 'premium'} dashboard...`, 'success');
+        tier: 'trial' // Default to trial for email-only signups
+      })
+    });
+
+    const authResult = await authResponse.json();
+    
+    if (authResult.success) {
+      const { user, token } = authResult.data;
+      const userName = user.profile?.first_name || email.split('@')[0];
+      
+      showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
+      
       setTimeout(() => {
-        console.log('🚀 LOGIN DEBUG: Calling redirectToDashboardWithTier');
-        redirectToDashboardWithTier(authToken, email, customerStatus.tier, customerName);
+        const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}#overview`;
+        console.log('🚀 Email login - redirecting to dashboard:', dashboardUrl);
+        window.location.href = dashboardUrl;
       }, 1500);
-    } else if (customerStatus.needsSubscription || !customerStatus.isValidCustomer) {
-      // EMAIL LOGIN: For new users, suggest they use Google OAuth instead of creating loops
+      
+    } else {
+      // User not found - suggest Google OAuth
       showMessage('No account found. Please use "Continue with Google" above to create your account.', 'error');
       
       // Highlight the Google OAuth button to guide user
@@ -501,6 +446,7 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
   } catch (error) {
     console.error('Email login error:', error);
     showMessage('Authentication failed. Please try again or contact support.', 'error');
+  } finally {
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
   }
@@ -525,27 +471,22 @@ function generateAuthToken(email, provider) {
 }
 
 function redirectToDashboard(authToken, email, name = null) {
-  const urlParams = new URLSearchParams(window.location.search);
-  // Use app.postdoserx.com - the official dashboard URL
-  const redirectUrl = urlParams.get('redirect') || 'https://app.postdoserx.com';
-  
-  let dashboardUrl = `${redirectUrl}?token=${authToken}&email=${encodeURIComponent(email)}`;
+  // Always redirect to app.postdoserx.com - the official dashboard URL
+  let dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}`;
   if (name) {
     dashboardUrl += `&name=${encodeURIComponent(name)}`;
   }
+  dashboardUrl += '#overview';
   
+  console.log('🚀 Utility redirect to dashboard:', dashboardUrl);
   window.location.href = dashboardUrl;
 }
 
 function redirectToDashboardWithTier(authToken, email, tier = 'trial', name = null) {
   console.log('🎯 redirectToDashboardWithTier called with:', { authToken: authToken?.substring(0, 20) + '...', email, tier, name });
   
-  const urlParams = new URLSearchParams(window.location.search);
-  // Use app.postdoserx.com - the official dashboard URL
-  const redirectUrl = urlParams.get('redirect') || 'https://app.postdoserx.com';
-  
-  // Include tier parameter for proper dashboard setup
-  let dashboardUrl = `${redirectUrl}?tier=${tier}&email=${encodeURIComponent(email)}&token=${authToken}`;
+  // Always use app.postdoserx.com - ignore redirect param to prevent loops
+  let dashboardUrl = `https://app.postdoserx.com?tier=${tier}&email=${encodeURIComponent(email)}&token=${authToken}`;
   if (name) {
     dashboardUrl += `&name=${encodeURIComponent(name)}`;
   }
