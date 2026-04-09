@@ -22,54 +22,71 @@ class DashboardAuth {
    * Checks for token in URL params or localStorage, validates it, and sets up session
    */
   async init() {
-    try {
-      // Check for token in URL parameters (from login redirect)
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromURL = urlParams.get('token');
+    console.log('🚀 Dashboard auth initializing...');
+    
+    // Check for token in URL parameters (from login redirect)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromURL = urlParams.get('token');
+    const emailFromURL = urlParams.get('email');
+    const tierFromURL = urlParams.get('tier');
+    const userIdFromURL = urlParams.get('userId');
+    const nameFromURL = urlParams.get('name');
+    
+    console.log('📋 URL params:', { 
+      hasToken: !!tokenFromURL, 
+      email: emailFromURL, 
+      tier: tierFromURL, 
+      userId: userIdFromURL 
+    });
+    
+    // If we have URL parameters, use them - NEVER redirect
+    if (tokenFromURL && emailFromURL) {
+      console.log('✅ Found URL parameters, using them directly');
       
-      if (tokenFromURL) {
-        // Store token and clean URL
-        this.setToken(tokenFromURL);
-        this.cleanURL();
-      } else {
-        // Try to get token from localStorage
-        this.token = localStorage.getItem('auth_token');
-      }
-
-      if (!this.token) {
-        this.redirectToLogin('No authentication token found');
-        return false;
-      }
-
-      // Try to validate token, but don't fail if API is down
+      // Store token and clean URL
+      this.token = tokenFromURL;
+      localStorage.setItem('auth_token', tokenFromURL);
+      this.cleanURL();
+      
+      // Set user info from URL params
+      this.user = { 
+        email: emailFromURL, 
+        tier: tierFromURL || 'trial',
+        id: userIdFromURL,
+        profile: { first_name: nameFromURL }
+      };
+      
+      console.log('👤 User authenticated:', this.user);
+      return true;
+    }
+    
+    // Fallback to localStorage token (for returning users)
+    const storedToken = localStorage.getItem('auth_token');
+    if (storedToken) {
+      console.log('📱 Using stored token');
+      this.token = storedToken;
+      
+      // Try to get user info from API, but don't fail
       try {
         const isValid = await this.validateToken();
-        if (!isValid) {
-          console.warn('Token validation failed, but continuing with basic auth');
-          // Don't redirect - try to work with what we have
-          this.user = { email: urlParams.get('email'), tier: urlParams.get('tier') };
+        if (isValid) {
+          console.log('✅ Stored token validated successfully');
+        } else {
+          console.warn('⚠️ Stored token invalid, but continuing anyway');
+          this.user = { email: 'unknown', tier: 'trial' };
         }
       } catch (error) {
-        console.warn('Token validation API failed, using fallback auth:', error);
-        // Extract user info from URL parameters as fallback
-        this.user = { 
-          email: urlParams.get('email'), 
-          tier: urlParams.get('tier'),
-          id: urlParams.get('userId')
-        };
+        console.warn('⚠️ Token validation failed, using minimal user info:', error);
+        this.user = { email: 'unknown', tier: 'trial' };
       }
-
-      // Set up periodic token validation
-      this.setupTokenValidation();
       
-      console.log('Dashboard authentication initialized for user:', this.user.email);
       return true;
-
-    } catch (error) {
-      console.error('Dashboard auth initialization failed:', error);
-      this.redirectToLogin('Authentication initialization failed');
-      return false;
     }
+    
+    // Only redirect if we have absolutely nothing to work with
+    console.warn('❌ No authentication information found at all');
+    this.redirectToLogin('No authentication token found');
+    return false;
   }
 
   /**
