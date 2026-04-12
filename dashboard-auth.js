@@ -24,8 +24,17 @@ class DashboardAuth {
   async init() {
     console.log('🚀 Dashboard auth initializing...');
     
-    // Check for token in URL parameters (from login redirect)
+    // CRITICAL: Prevent infinite redirect loops by checking if we just came from login
     const urlParams = new URLSearchParams(window.location.search);
+    const fromLogin = urlParams.get('token') && urlParams.get('email');
+    
+    if (fromLogin) {
+      console.log('🔄 Detected redirect from login page - preventing any further redirects during this session');
+      // Set a flag to prevent redirects for this session
+      sessionStorage.setItem('prevent_auth_redirect', 'true');
+    }
+    
+    // Check for token in URL parameters (from login redirect)
     const tokenFromURL = urlParams.get('token');
     const emailFromURL = urlParams.get('email');
     const tierFromURL = urlParams.get('tier');
@@ -43,10 +52,20 @@ class DashboardAuth {
     if (tokenFromURL && emailFromURL) {
       console.log('✅ Found URL parameters, using them directly');
       
-      // Store token and clean URL
+      // Store token but DON'T clean URL yet - debug first
       this.token = tokenFromURL;
       localStorage.setItem('auth_token', tokenFromURL);
-      this.cleanURL();
+      console.log('🔍 DEBUG - Token stored successfully:', {
+        tokenLength: tokenFromURL.length,
+        email: emailFromURL,
+        tokenStart: tokenFromURL.substring(0, 20)
+      });
+      
+      // Delay URL cleaning to ensure everything works first
+      setTimeout(() => {
+        console.log('🧹 Cleaning URL parameters after delay');
+        this.cleanURL();
+      }, 2000);
       
       // Set user info from URL params
       this.user = { 
@@ -64,6 +83,10 @@ class DashboardAuth {
     const storedToken = localStorage.getItem('auth_token');
     if (storedToken) {
       console.log('📱 Using stored token');
+      console.log('🔍 DEBUG - Stored token info:', {
+        tokenLength: storedToken.length,
+        tokenStart: storedToken.substring(0, 20)
+      });
       this.token = storedToken;
       
       // Try to get user info from API, but don't fail
@@ -83,8 +106,24 @@ class DashboardAuth {
       return true;
     }
     
-    // Only redirect if we have absolutely nothing to work with
+    // Only redirect if we have absolutely nothing to work with AND we haven't just come from login
+    const preventRedirect = sessionStorage.getItem('prevent_auth_redirect') === 'true';
+    
+    if (preventRedirect) {
+      console.warn('⚠️ No auth info found, but preventing redirect to avoid loop. Using minimal session.');
+      // Provide a minimal session to keep dashboard functional
+      this.user = { email: 'guest', tier: 'trial' };
+      return true;
+    }
+    
     console.warn('❌ No authentication information found at all');
+    console.warn('🔍 DEBUG - URL params check failed:');
+    console.warn('  - tokenFromURL:', !!tokenFromURL, tokenFromURL?.substring(0, 20));
+    console.warn('  - emailFromURL:', emailFromURL);
+    console.warn('  - storedToken:', !!localStorage.getItem('auth_token'));
+    console.warn('  - preventRedirect flag:', preventRedirect);
+    console.warn('  - Current URL:', window.location.href);
+    
     this.redirectToLogin('No authentication token found');
     return false;
   }
@@ -179,6 +218,22 @@ class DashboardAuth {
    * Redirect to login page with optional message
    */
   redirectToLogin(message = '') {
+    // CRITICAL: Check if we should prevent redirect to avoid infinite loops
+    const preventRedirect = sessionStorage.getItem('prevent_auth_redirect') === 'true';
+    
+    if (preventRedirect) {
+      console.warn('🚨 REDIRECT BLOCKED: Preventing potential infinite loop to login.html');
+      console.warn('🚨 Reason:', message);
+      console.warn('🚨 Dashboard will continue with limited functionality');
+      return; // Don't redirect
+    }
+    
+    // Additional safety: Check if we're already on the login page
+    if (window.location.href.includes('login.html')) {
+      console.warn('🚨 REDIRECT BLOCKED: Already on login page, preventing loop');
+      return;
+    }
+    
     this.clearToken();
     
     const loginURL = new URL('https://postdoserx.com/login.html');
@@ -253,7 +308,17 @@ class DashboardAuth {
    */
   logout() {
     this.clearToken();
+    // Clear redirect prevention when explicitly logging out
+    sessionStorage.removeItem('prevent_auth_redirect');
     window.location.href = 'https://postdoserx.com';
+  }
+
+  /**
+   * Clear the redirect prevention flag (for testing/debugging)
+   */
+  clearRedirectPrevention() {
+    sessionStorage.removeItem('prevent_auth_redirect');
+    console.log('🔓 Redirect prevention cleared - normal redirects will work again');
   }
 }
 

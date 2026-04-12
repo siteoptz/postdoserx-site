@@ -27,6 +27,10 @@
     {
       "source": "/api/users/(.*)",
       "destination": "/api/users/$1"
+    },
+    {
+      "source": "/api/dashboard/(.*)",
+      "destination": "/api/dashboard/$1"
     }
   ]
 }

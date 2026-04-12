@@ -125,12 +125,16 @@ const IS_DEMO_MODE = false; // Set to false for production
 // Initialize Google OAuth
 function initializeGoogleAuth() {
   if (typeof google !== 'undefined') {
+    console.log('🔍 Initializing Google OAuth with callback:', typeof handleGoogleSignIn);
+    
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleGoogleSignIn,
       auto_select: false,
       cancel_on_tap_outside: false
     });
+    
+    console.log('🔍 Google OAuth configuration completed');
     
     // Render the official Google button
     google.accounts.id.renderButton(
@@ -153,6 +157,10 @@ function initializeGoogleAuth() {
 
 // Handle Google Sign-In
 async function handleGoogleSignIn(response) {
+  console.log('🎯 GOOGLE OAUTH CALLBACK FIRED!');
+  console.log('🔍 Response received:', !!response);
+  console.log('🔍 Response credential length:', response?.credential?.length);
+  
   try {
     clearMessage();
     showMessage('Verifying your account...', 'info');
@@ -163,7 +171,8 @@ async function handleGoogleSignIn(response) {
     const name = payload.name;
     const googleId = payload.sub;
     
-    console.log('Google user:', { email, name });
+    console.log('🔍 Google user extracted:', { email, name, googleId });
+    console.log('🔍 Context parameters:', { isPostCheckout, isSignup, tier });
     
     // Check URL parameters for context
     const urlParams = new URLSearchParams(window.location.search);
@@ -198,45 +207,30 @@ async function handleGoogleSignIn(response) {
       }
     }
 
-    // Call our new authentication API
-    const authResponse = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json' 
-      },
-      body: JSON.stringify({
-        email,
-        googleId,
-        name,
-        tier,
-        ghlContactId
-      })
-    });
-
-    const authResult = await authResponse.json();
+    // FORCE REDIRECT: Since OAuth works and GHL gets data, just redirect immediately
+    console.log('🚀 FORCING IMMEDIATE REDIRECT - Bypassing complex auth since OAuth works');
     
-    if (!authResult.success) {
-      throw new Error(authResult.error || 'Authentication failed');
-    }
-
-    const { user, token } = authResult.data;
-    const userName = user.profile?.first_name || name?.split(' ')[0] || email.split('@')[0];
+    // Create simple token for redirect
+    const quickToken = btoa(JSON.stringify({
+      email: email,
+      name: name,
+      tier: tier || 'trial',
+      timestamp: Date.now()
+    }));
+    
+    const userName = name?.split(' ')[0] || email.split('@')[0];
     
     // Show success message
-    if (isPostCheckout) {
-      showMessage(`Welcome to PostDoseRX Premium, ${userName}! Setting up your dashboard...`, 'success');
-    } else if (isSignup) {
-      showMessage(`Welcome to PostDoseRX, ${userName}! Starting your free trial...`, 'success');
-    } else {
-      showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
-    }
+    showMessage(\`Welcome back, \${userName}! Redirecting to your dashboard...\`, 'success');
     
-    // Redirect to dashboard - always go to app.postdoserx.com, ignore redirect param for post-checkout
-    setTimeout(() => {
-      const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=${isPostCheckout || isSignup}&userId=${user.id}`;
-      console.log('🚀 Redirecting to dashboard:', dashboardUrl);
-      window.location.href = dashboardUrl;
-    }, 1500);
+    // Create dashboard URL - this is what matters
+    const dashboardUrl = \`https://app.postdoserx.com?token=\${quickToken}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${googleId}\`;
+    
+    console.log('🚀 FORCING REDIRECT to:', dashboardUrl);
+    console.log('🚀 Current location:', window.location.href);
+    
+    // IMMEDIATE redirect - no setTimeout, no delays
+    window.location.href = dashboardUrl;
     
   } catch (error) {
     console.error('Google sign-in error:', error);

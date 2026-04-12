@@ -15,6 +15,586 @@
 <title>PostDoseRX — Meal planning built around your injection day</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
 <script src="https://js.stripe.com/v3/"></script>
+
+<!-- CRITICAL: Dashboard subdomain detection - MUST be first -->
+<script>
+// PREVENT INFINITE REDIRECT LOOP: Check if we're on app.postdoserx.com
+console.log('🔍 SUBDOMAIN CHECK - Current hostname:', window.location.hostname);
+console.log('🔍 SUBDOMAIN CHECK - Full URL:', window.location.href);
+
+if (window.location.hostname === 'app.postdoserx.com') {
+  console.log('🎯 DASHBOARD SUBDOMAIN DETECTED - Loading dashboard instead of marketing page');
+  
+  // IMMEDIATELY prevent any marketing page logic from running
+  window.isDashboardSubdomain = true;
+  
+  // Hide the marketing page body content immediately
+  document.addEventListener('DOMContentLoaded', function() {
+    // Hide all marketing content
+    document.body.style.display = 'none';
+    
+    // Create dashboard container
+    document.body.innerHTML = `
+      <div id="dashboard-container" style="min-height: 100vh; display: flex; flex-direction: column; background: var(--cream);">
+        <nav style="padding: 20px 48px; border-bottom: 1px solid var(--border); background: var(--white);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--navy);">
+              PostDose<span style="color: var(--magenta);">RX</span>
+              <div style="font-family: 'Montserrat'; font-size: 9px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--slate-light); margin-top: 2px;">Dashboard</div>
+            </div>
+            <button onclick="logout()" style="padding: 8px 16px; background: var(--slate); color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Logout</button>
+          </div>
+        </nav>
+        
+        <main style="flex: 1; padding: 40px 48px;">
+          <!-- Auth Status -->
+          <div id="dashboard-auth-status" style="padding: 20px; background: var(--white); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 12px; height: 12px; background: var(--teal); border-radius: 50%; animation: pulse 2s infinite;"></div>
+              <span style="color: var(--text-sec);">Initializing dashboard...</span>
+            </div>
+          </div>
+
+          <!-- Dashboard Content - Show immediately on app subdomain -->
+          <div id="dashboard-content" style="display: block;">
+            
+            <!-- Dashboard Header -->
+            <div style="margin-bottom: 32px;">
+              <h1 id="dashboard-welcome" style="font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--navy); margin-bottom: 8px;">Welcome back!</h1>
+              <p id="dashboard-subtitle" style="color: var(--text-sec);">Here's your personalized health tracking dashboard</p>
+            </div>
+
+            <!-- Stats Overview -->
+            <div id="dashboard-stats" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 32px;">
+              <!-- Stats will be populated dynamically -->
+            </div>
+
+            <!-- Main Dashboard Grid -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 32px; margin-bottom: 32px;">
+              
+              <!-- Left Column -->
+              <div>
+                <!-- Today's Meals -->
+                <div id="todays-meals" style="background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                  <h3 style="color: var(--navy); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    🍽️ Today's Meals
+                  </h3>
+                  <div id="meals-content">
+                    <p style="color: var(--text-sec);">Loading your meal plan...</p>
+                  </div>
+                </div>
+
+                <!-- Recent Symptoms -->
+                <div id="symptom-tracker" style="background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px;">
+                  <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="color: var(--navy); margin: 0;">📝 Symptom Tracker</h3>
+                    <button onclick="logSymptomsToday()" style="background: var(--magenta); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; cursor: pointer;">Log Today</button>
+                  </div>
+                  <div id="symptoms-content">
+                    <p style="color: var(--text-sec);">Loading recent symptoms...</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column -->
+              <div>
+                <!-- Progress Summary -->
+                <div style="background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                  <h3 style="color: var(--navy); margin-bottom: 16px;">📈 Progress Summary</h3>
+                  <div id="progress-content">
+                    <p style="color: var(--text-sec);">Loading progress data...</p>
+                  </div>
+                </div>
+
+                <!-- Upcoming Injection -->
+                <div id="injection-reminder" style="background: var(--magenta-light); border: 1px solid var(--magenta); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                  <h3 style="color: var(--magenta-dark); margin-bottom: 12px;">💉 Injection Schedule</h3>
+                  <div id="injection-content">
+                    <p style="color: var(--magenta-dark);">Loading injection schedule...</p>
+                  </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div style="background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+                  <h3 style="color: var(--navy); margin-bottom: 16px;">⚡ Quick Actions</h3>
+                  <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button onclick="logSymptomsToday()" style="background: var(--teal); color: white; border: none; padding: 12px 16px; border-radius: 6px; font-size: 14px; cursor: pointer;">Log Symptoms</button>
+                    <button onclick="rateTodaysMeals()" style="background: var(--gold); color: white; border: none; padding: 12px 16px; border-radius: 6px; font-size: 14px; cursor: pointer;">Rate Meals</button>
+                    <button onclick="logProgress()" style="background: var(--magenta); color: white; border: none; padding: 12px 16px; border-radius: 6px; font-size: 14px; cursor: pointer;">Log Progress</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Profile Setup Notice -->
+            <div id="profile-setup-notice" style="display: none; background: var(--gold-light); border: 1px solid var(--gold); padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+              <p style="color: var(--gold-dark); margin: 0;"><strong>Complete your profile</strong> to get personalized meal plans and injection schedule tracking. <a href="#" onclick="setupProfile()" style="color: var(--gold-dark); text-decoration: underline;">Set up now</a></p>
+            </div>
+          </div>
+
+          <!-- Loading States -->
+          <div id="dashboard-loading" style="text-align: center; padding: 60px 20px;">
+            <div style="width: 40px; height: 40px; border: 3px solid var(--border); border-top: 3px solid var(--magenta); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+            <p style="color: var(--text-sec);">Loading your personalized dashboard...</p>
+          </div>
+
+          <!-- Error State -->
+          <div id="dashboard-error" style="display: none; text-align: center; padding: 60px 20px;">
+            <p style="color: var(--magenta); margin-bottom: 16px;">⚠️ Unable to load dashboard data</p>
+            <button onclick="retryDashboardLoad()" style="background: var(--magenta); color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer;">Try Again</button>
+          </div>
+        </main>
+      </div>
+      
+      <style>
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+    
+    // Load and initialize dashboard auth
+    const authScript = document.createElement('script');
+    authScript.src = '/dashboard-auth.js';
+    authScript.onload = function() {
+      console.log('📱 Dashboard auth script loaded');
+      
+      // CRITICAL DEBUG: Check what functions are actually available
+      console.log('🔍 Available functions:');
+      console.log('- initializeDashboardAuth:', typeof window.initializeDashboardAuth);
+      console.log('- getCurrentUser:', typeof window.getCurrentUser);
+      console.log('- authenticatedFetch:', typeof window.authenticatedFetch);
+      
+      // CRITICAL DEBUG: Check current URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      console.log('🔍 Current URL parameters:', {
+        token: urlParams.get('token')?.substring(0, 20) + '...',
+        email: urlParams.get('email'),
+        name: urlParams.get('name'),
+        tier: urlParams.get('tier'),
+        userId: urlParams.get('userId')
+      });
+      
+      if (typeof window.initializeDashboardAuth !== 'function') {
+        console.error('❌ initializeDashboardAuth function not found!');
+        document.getElementById('dashboard-auth-status').innerHTML = \`
+          <div style="background: var(--magenta-light); color: var(--magenta-dark); padding: 12px; border-radius: 4px;">
+            ❌ Dashboard authentication system failed to load
+          </div>
+        \`;
+        return;
+      }
+      
+      // Initialize dashboard authentication
+      console.log('🚀 About to call initializeDashboardAuth()...');
+      initializeDashboardAuth().then(function(isAuthenticated) {
+        console.log('✅ initializeDashboardAuth completed, result:', isAuthenticated);
+        if (isAuthenticated) {
+          document.getElementById('dashboard-auth-status').innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 12px; height: 12px; background: var(--teal); border-radius: 50%;"></div>
+              <span style="color: var(--teal-dark); font-weight: 600;">Authentication successful!</span>
+            </div>
+          `;
+          
+          // Load dashboard data
+          loadDashboardData();
+        }
+      }).catch(function(error) {
+        console.error('Dashboard auth failed:', error);
+        document.getElementById('dashboard-auth-status').innerHTML = \`
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 12px; height: 12px; background: var(--magenta); border-radius: 50%;"></div>
+            <span style="color: var(--magenta); font-weight: 600;">Dashboard authentication in progress...</span>
+          </div>
+        \`;
+      });
+    };
+    authScript.onerror = function() {
+      console.error('❌ CRITICAL: Failed to load dashboard auth script from /dashboard-auth.js');
+      console.error('❌ This means the file is not accessible or there is a CORS issue');
+      
+      // Try to continue with basic functionality
+      document.getElementById('dashboard-auth-status').innerHTML = \`
+        <div style="background: var(--magenta-light); color: var(--magenta-dark); padding: 12px; border-radius: 4px;">
+          ❌ Dashboard authentication system failed to load. Trying fallback...
+        </div>
+      \`;
+      
+      // Fallback: Try to extract token from URL manually and show basic dashboard
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      const email = urlParams.get('email');
+      
+      if (token && email) {
+        console.log('🔄 FALLBACK: Found token and email in URL, proceeding with basic dashboard');
+        
+        // Store token manually
+        localStorage.setItem('auth_token', token);
+        
+        // Show dashboard
+        document.getElementById('dashboard-loading').style.display = 'none';
+        document.getElementById('dashboard-content').style.display = 'block';
+        document.getElementById('dashboard-welcome').textContent = \`Welcome back, \${email.split('@')[0]}!\`;
+        
+        // Update auth status
+        document.getElementById('dashboard-auth-status').innerHTML = \`
+          <div style="background: var(--gold-light); color: var(--gold-dark); padding: 12px; border-radius: 4px;">
+            ⚠️ Dashboard running in fallback mode. Some features may not work.
+          </div>
+        \`;
+        
+      } else {
+        console.error('❌ FALLBACK FAILED: No token or email found in URL');
+        document.getElementById('dashboard-auth-status').innerHTML = \`
+          <div style="background: var(--magenta-light); color: var(--magenta-dark); padding: 12px; border-radius: 4px;">
+            ❌ Authentication failed completely. <a href="/login.html" style="color: var(--magenta-dark); text-decoration: underline;">Please sign in again</a>
+          </div>
+        \`;
+      }
+    };
+    document.head.appendChild(authScript);
+    
+    // Add dashboard functionality
+    window.loadDashboardData = async function() {
+      try {
+        console.log('🔄 Loading dashboard data...');
+        
+        // Show loading state
+        document.getElementById('dashboard-loading').style.display = 'block';
+        document.getElementById('dashboard-content').style.display = 'none';
+        document.getElementById('dashboard-error').style.display = 'none';
+        
+        // Get user authentication
+        const user = getCurrentUser();
+        if (!user) {
+          throw new Error('No authenticated user found');
+        }
+        
+        // Fetch dashboard data
+        const response = await authenticatedFetch('/api/dashboard/data');
+        if (!response.ok) {
+          throw new Error(\`Failed to load dashboard data: \${response.status}\`);
+        }
+        
+        const dashboardData = await response.json();
+        if (!dashboardData.success) {
+          throw new Error(dashboardData.error || 'Failed to load dashboard');
+        }
+        
+        // Populate dashboard with real data
+        populateDashboard(dashboardData.data, user);
+        
+        // Hide loading, show content
+        document.getElementById('dashboard-loading').style.display = 'none';
+        document.getElementById('dashboard-content').style.display = 'block';
+        
+        console.log('✅ Dashboard data loaded successfully');
+        
+      } catch (error) {
+        console.error('❌ Dashboard loading failed:', error);
+        
+        // Show error state
+        document.getElementById('dashboard-loading').style.display = 'none';
+        document.getElementById('dashboard-error').style.display = 'block';
+      }
+    };
+    
+    window.populateDashboard = function(data, user) {
+      // Update welcome message based on user tier and profile completion
+      const firstName = user.profile?.first_name || user.email.split('@')[0];
+      const tierText = user.tier === 'premium' ? 'Premium Member' : 'Trial Member';
+      
+      document.getElementById('dashboard-welcome').textContent = \`Welcome back, \${firstName}!\`;
+      
+      // Update subtitle based on user status
+      const subtitle = document.getElementById('dashboard-subtitle');
+      if (!data.profile || !data.profile.onboarding_completed) {
+        subtitle.textContent = \`\${tierText} - Complete your profile to get personalized meal plans\`;
+      } else {
+        subtitle.textContent = \`\${tierText} - Your personalized health tracking dashboard\`;
+      }
+      
+      // Populate stats
+      const stats = [
+        { label: 'Symptom Logs', value: data.dashboardStats?.totalSymptomLogs || 0, color: 'var(--teal)' },
+        { label: 'Current Streak', value: \`\${data.dashboardStats?.currentStreak || 0} days\`, color: 'var(--magenta)' },
+        { label: 'Week Progress', value: \`\${data.dashboardStats?.weekProgress || 0}/7\`, color: 'var(--gold)' },
+        { label: 'Current Tier', value: user.tier || 'trial', color: 'var(--navy)' }
+      ];
+      
+      const statsHtml = stats.map(stat => \`
+        <div style="background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center;">
+          <div style="font-size: 24px; font-weight: 700; color: \${stat.color}; margin-bottom: 8px;">\${stat.value}</div>
+          <div style="font-size: 12px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.5px;">\${stat.label}</div>
+        </div>
+      \`).join('');
+      document.getElementById('dashboard-stats').innerHTML = statsHtml;
+      
+      // Populate meals
+      populateMeals(data.mealPlan, data.upcomingMeals);
+      
+      // Populate symptoms
+      populateSymptoms(data.symptoms);
+      
+      // Populate progress
+      populateProgress(data.progress);
+      
+      // Populate injection schedule
+      populateInjectionSchedule(data.profile);
+      
+      // Show profile setup notice if needed
+      if (!data.profile || !data.profile.onboarding_completed) {
+        document.getElementById('profile-setup-notice').style.display = 'block';
+      }
+      
+      // Add tier-specific features
+      addTierSpecificFeatures(user.tier, data.profile);
+    };
+    
+    window.populateMeals = function(mealPlan, upcomingMeals) {
+      if (!mealPlan && (!upcomingMeals || upcomingMeals.length === 0)) {
+        document.getElementById('meals-content').innerHTML = \`
+          <div style="text-align: center; padding: 20px; color: var(--text-sec);">
+            <p style="margin-bottom: 16px;">No meal plan available yet.</p>
+            <button onclick="generateMealPlan()" style="background: var(--magenta); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer;">Generate Meal Plan</button>
+          </div>
+        \`;
+        return;
+      }
+      
+      const today = new Date().toLocaleDateString();
+      const todayMeals = upcomingMeals?.filter(meal => meal.date === new Date().toISOString().split('T')[0]) || [];
+      
+      if (todayMeals.length === 0) {
+        document.getElementById('meals-content').innerHTML = \`
+          <p style="color: var(--text-sec);">No meals scheduled for today. <a href="#" onclick="viewFullMealPlan()" style="color: var(--magenta);">View full meal plan</a></p>
+        \`;
+        return;
+      }
+      
+      const mealsHtml = todayMeals.map(meal => \`
+        <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 8px;">
+            <h4 style="color: var(--navy); margin: 0; text-transform: capitalize;">\${meal.type}</h4>
+            <span style="font-size: 12px; color: var(--text-muted);">\${meal.meal?.calories || 0} cal</span>
+          </div>
+          <h5 style="color: var(--text); margin-bottom: 4px;">\${meal.meal?.name || 'Meal'}</h5>
+          <p style="color: var(--text-sec); font-size: 14px; margin: 0;">\${meal.meal?.description || ''}</p>
+        </div>
+      \`).join('');
+      
+      document.getElementById('meals-content').innerHTML = mealsHtml;
+    };
+    
+    window.populateSymptoms = function(symptoms) {
+      if (!symptoms || symptoms.length === 0) {
+        document.getElementById('symptoms-content').innerHTML = \`
+          <div style="text-align: center; padding: 20px; color: var(--text-sec);">
+            <p style="margin-bottom: 16px;">No symptom logs yet.</p>
+            <button onclick="logSymptomsToday()" style="background: var(--teal); color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer;">Log Today's Symptoms</button>
+          </div>
+        \`;
+        return;
+      }
+      
+      const recentSymptoms = symptoms.slice(0, 5);
+      const symptomsHtml = recentSymptoms.map(log => {
+        const date = new Date(log.log_date).toLocaleDateString();
+        const symptomKeys = Object.keys(log.symptoms || {});
+        const symptomCount = symptomKeys.length;
+        
+        return \`
+          <div style="border-bottom: 1px solid var(--border); padding: 12px 0;">
+            <div style="display: flex; justify-content: between; align-items: center;">
+              <span style="font-weight: 600; color: var(--navy);">\${date}</span>
+              <span style="font-size: 12px; color: var(--text-sec);">\${symptomCount} symptoms</span>
+            </div>
+            \${log.note ? \`<p style="color: var(--text-sec); font-size: 14px; margin: 4px 0 0 0;">\${log.note}</p>\` : ''}
+          </div>
+        \`;
+      }).join('');
+      
+      document.getElementById('symptoms-content').innerHTML = symptomsHtml + \`
+        <div style="text-align: center; margin-top: 16px;">
+          <a href="#" onclick="viewAllSymptoms()" style="color: var(--magenta); font-size: 14px;">View all symptoms</a>
+        </div>
+      \`;
+    };
+    
+    window.populateProgress = function(progress) {
+      if (!progress || progress.length === 0) {
+        document.getElementById('progress-content').innerHTML = \`
+          <div style="text-align: center; padding: 20px; color: var(--text-sec);">
+            <p style="margin-bottom: 16px;">No progress logged yet.</p>
+            <button onclick="logProgress()" style="background: var(--magenta); color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer;">Log Progress</button>
+          </div>
+        \`;
+        return;
+      }
+      
+      const latestProgress = progress[0];
+      const date = new Date(latestProgress.log_date).toLocaleDateString();
+      
+      document.getElementById('progress-content').innerHTML = \`
+        <div style="margin-bottom: 16px;">
+          <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 8px;">
+            <span style="color: var(--navy); font-weight: 600;">Latest Entry</span>
+            <span style="color: var(--text-sec); font-size: 12px;">\${date}</span>
+          </div>
+          \${latestProgress.weight ? \`
+            <div style="background: var(--sand-light); padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+              <span style="color: var(--text); font-size: 20px; font-weight: 600;">\${latestProgress.weight} lbs</span>
+            </div>
+          \` : ''}
+          \${latestProgress.notes ? \`<p style="color: var(--text-sec); font-size: 14px;">\${latestProgress.notes}</p>\` : ''}
+        </div>
+        <div style="text-align: center;">
+          <a href="#" onclick="viewProgressHistory()" style="color: var(--magenta); font-size: 14px;">View progress history</a>
+        </div>
+      \`;
+    };
+    
+    window.populateInjectionSchedule = function(profile) {
+      if (!profile || profile.injection_day === null || profile.injection_day === undefined) {
+        document.getElementById('injection-content').innerHTML = \`
+          <p style="color: var(--magenta-dark); margin-bottom: 12px;">Set your injection schedule to get personalized meal timing.</p>
+          <button onclick="setupProfile()" style="background: var(--magenta-dark); color: white; border: none; padding: 8px 16px; border-radius: 4px; font-size: 12px; cursor: pointer;">Set Schedule</button>
+        \`;
+        return;
+      }
+      
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const injectionDay = days[profile.injection_day];
+      const today = new Date();
+      const currentDay = today.getDay();
+      const daysUntilInjection = (profile.injection_day - currentDay + 7) % 7;
+      const nextInjection = daysUntilInjection === 0 ? 'Today' : \`in \${daysUntilInjection} day\${daysUntilInjection !== 1 ? 's' : ''}\`;
+      
+      document.getElementById('injection-content').innerHTML = \`
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 18px; font-weight: 600; color: var(--magenta-dark); margin-bottom: 4px;">\${injectionDay}s</div>
+          <div style="color: var(--magenta-dark);">Next injection: \${nextInjection}</div>
+        </div>
+        \${profile.medication ? \`
+          <div style="font-size: 12px; color: var(--magenta-dark); opacity: 0.8;">
+            \${profile.medication}\${profile.dose ? \` - \${profile.dose}\` : ''}
+          </div>
+        \` : ''}
+      \`;
+    };
+    
+    // Dashboard action functions
+    window.logSymptomsToday = function() { alert('Symptom logging modal would open here'); };
+    window.rateTodaysMeals = function() { alert('Meal rating modal would open here'); };
+    window.logProgress = function() { alert('Progress logging modal would open here'); };
+    window.setupProfile = function() { alert('Profile setup modal would open here'); };
+    window.generateMealPlan = function() { alert('Meal plan generator would open here'); };
+    window.viewFullMealPlan = function() { alert('Full meal plan view would open here'); };
+    window.viewAllSymptoms = function() { alert('All symptoms view would open here'); };
+    window.viewProgressHistory = function() { alert('Progress history view would open here'); };
+    window.retryDashboardLoad = function() { loadDashboardData(); };
+    
+    // Add tier-specific features and restrictions
+    window.addTierSpecificFeatures = function(tier, profile) {
+      console.log('🎯 Adding tier-specific features for:', tier);
+      
+      if (tier === 'premium') {
+        // Premium users get full features
+        addPremiumFeatures();
+      } else {
+        // Trial users get limited features with upgrade prompts
+        addTrialLimitations();
+      }
+      
+      // Add profile-specific customizations
+      if (profile && profile.onboarding_completed) {
+        addPersonalizedFeatures(profile);
+      }
+    };
+    
+    window.addPremiumFeatures = function() {
+      // Add premium-only features to the dashboard
+      const premiumBadge = document.createElement('div');
+      premiumBadge.innerHTML = \`
+        <div style="display: inline-block; background: linear-gradient(45deg, var(--gold), var(--gold-dark)); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 12px;">
+          ✨ Premium
+        </div>
+      \`;
+      document.getElementById('dashboard-welcome').appendChild(premiumBadge);
+      
+      // Enable advanced features
+      console.log('✨ Premium features enabled');
+    };
+    
+    window.addTrialLimitations = function() {
+      // Add trial badge
+      const trialBadge = document.createElement('div');
+      trialBadge.innerHTML = \`
+        <div style="display: inline-block; background: var(--teal); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 12px;">
+          Trial
+        </div>
+      \`;
+      document.getElementById('dashboard-welcome').appendChild(trialBadge);
+      
+      // Add upgrade prompts to features
+      addUpgradePrompts();
+      
+      console.log('📊 Trial limitations applied');
+    };
+    
+    window.addUpgradePrompts = function() {
+      // Add upgrade prompt to dashboard
+      const upgradePrompt = document.createElement('div');
+      upgradePrompt.innerHTML = \`
+        <div style="background: linear-gradient(135deg, var(--magenta-light), var(--gold-light)); border: 1px solid var(--magenta); border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center;">
+          <h3 style="color: var(--magenta-dark); margin-bottom: 8px;">🚀 Upgrade to Premium</h3>
+          <p style="color: var(--magenta-dark); margin-bottom: 16px; font-size: 14px;">Get AI-powered meal planning, advanced progress tracking, and personalized recommendations.</p>
+          <button onclick="upgradeToPremium()" style="background: var(--magenta); color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; cursor: pointer;">Upgrade Now</button>
+        </div>
+      \`;
+      
+      // Insert after dashboard stats
+      const statsElement = document.getElementById('dashboard-stats');
+      statsElement.parentNode.insertBefore(upgradePrompt, statsElement.nextSibling);
+    };
+    
+    window.addPersonalizedFeatures = function(profile) {
+      console.log('👤 Adding personalized features for user profile');
+      
+      // Customize based on user's medication and goals
+      if (profile.medication) {
+        console.log(\`💊 User medication: \${profile.medication}\`);
+      }
+      
+      if (profile.injection_day !== null) {
+        console.log(\`📅 User injection day: \${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][profile.injection_day]}\`);
+      }
+      
+      // Could add more personalization based on goals, dietary preferences, etc.
+    };
+    
+    window.upgradeToPremium = function() {
+      console.log('💰 User clicked upgrade to premium');
+      // Redirect to upgrade flow
+      window.open('/#signup', '_blank');
+    };
+    
+  });
+  
+  // Prevent any marketing page scripts from running
+  window.addEventListener('load', function(e) {
+    e.stopImmediatePropagation();
+  });
+}
+</script>
+
 <style>
 :root {
   --cream: #FDF8F4; --warm: #FEFCFA; --sand: #F5EDE4; --sand-light: #FAF6F1;
@@ -706,6 +1286,15 @@ footer .f-links a:hover{color:var(--navy)}
 <footer><span class="copy">PostDose<span style="color:var(--magenta)">RX</span> &copy; 2026</span><div class="f-links"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/contact.html">Contact</a></div></footer>
 
 <script>
+// CRITICAL: Prevent marketing page scripts from running on dashboard subdomain
+console.log('🔍 MARKETING SCRIPTS CHECK - isDashboardSubdomain:', window.isDashboardSubdomain);
+console.log('🔍 MARKETING SCRIPTS CHECK - Current hostname:', window.location.hostname);
+
+if (window.isDashboardSubdomain) {
+  console.log('🚫 Skipping marketing page scripts on dashboard subdomain');
+} else {
+  console.log('✅ Running marketing page scripts');
+
 // Question option configs
 var qConfig = {
   1: [
@@ -949,6 +1538,8 @@ var obs = new IntersectionObserver(function(e) { e.forEach(function(x) {
 document.querySelectorAll('.how-item,.p-card,.data-item').forEach(function(el) {
   el.style.opacity = '0'; el.style.transform = 'translateY(12px)'; el.style.transition = 'opacity .45s ease,transform .45s ease'; obs.observe(el)
 });
+
+} // End dashboard subdomain check - close modal functions
 </script>
 
 <!-- ═══ THANK YOU MODAL ═══ -->
@@ -1188,6 +1779,9 @@ Within 24-48 business hours
 </div>
 
 <script>
+// Guard marketing page modal functions
+if (!window.isDashboardSubdomain) {
+
 function openModal(id){
   const m = document.getElementById('modal-'+id);
   if(!m) return;
@@ -1270,6 +1864,8 @@ function startStripeCheckout(priceId, buttonElement) {
     buttonElement.disabled = false;
   }
 }
+
+} // End dashboard subdomain check - close signup functions
 </script>
 
 <!-- Quick Signup Modal -->
@@ -1802,6 +2398,9 @@ function startStripeCheckout(priceId, buttonElement) {
 </style>
 
 <script>
+// Guard marketing page signup functions
+if (!window.isDashboardSubdomain) {
+
 let selectedPlan = null;
 let selectedPriceId = null;
 
@@ -2515,6 +3114,8 @@ function handleUrlHash() {
 // Check hash on page load and hash changes
 window.addEventListener('load', handleUrlHash);
 window.addEventListener('hashchange', handleUrlHash);
+
+} // End dashboard subdomain check - close marketing scripts
 </script>
 
 </body>
