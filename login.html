@@ -233,11 +233,10 @@ async function handleGoogleSignIn(response) {
         
         showMessage(\`Welcome back, \${userName}! Redirecting to your dashboard...\`, 'success');
         
-        // WORKAROUND: Redirect to main site with dashboard flag since app.postdoserx.com is separate project
-        const dashboardUrl = \`https://postdoserx.com?token=\${token}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${user.id}&dashboard=true\`;
+        // Redirect to actual dashboard with proper JWT
+        const dashboardUrl = \`https://app.postdoserx.com?token=\${token}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${user.id}\`;
         
-        console.log('🚀 Redirecting with JWT token to main site dashboard:', dashboardUrl);
-        console.log('🔧 Using main site dashboard because app.postdoserx.com is separate project');
+        console.log('🚀 Redirecting with JWT token to dashboard:', dashboardUrl);
         window.location.href = dashboardUrl;
         
       } else {
@@ -253,9 +252,9 @@ async function handleGoogleSignIn(response) {
       
       showMessage(\`Welcome back, \${userName}! Redirecting to your dashboard...\`, 'success');
       
-      const dashboardUrl = \`https://postdoserx.com?token=\${fallbackToken}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${googleId}&dashboard=true\`;
+      const dashboardUrl = \`https://app.postdoserx.com?token=\${fallbackToken}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${googleId}\`;
       
-      console.log('🚀 Redirecting with fallback token to main site dashboard:', dashboardUrl);
+      console.log('🚀 Redirecting with fallback token to dashboard:', dashboardUrl);
       window.location.href = dashboardUrl;
     }
     
@@ -443,7 +442,7 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
       showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
       
       setTimeout(() => {
-        const dashboardUrl = `https://postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&userId=${user.id}&dashboard=true`;
+        const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&userId=${user.id}`;
         console.log('🚀 Email login - redirecting to dashboard:', dashboardUrl);
         window.location.href = dashboardUrl;
       }, 1500);
@@ -506,7 +505,7 @@ function generateSimpleAuthToken(email, name, tier) {
 
 function redirectToDashboard(authToken, email, name = null, tier = 'trial') {
   // Always redirect to app.postdoserx.com - the official dashboard URL
-  let dashboardUrl = `https://postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&tier=${tier}&dashboard=true`;
+  let dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&tier=${tier}`;
   if (name) {
     dashboardUrl += `&name=${encodeURIComponent(name)}`;
   }
@@ -519,7 +518,7 @@ function redirectToDashboardWithTier(authToken, email, tier = 'trial', name = nu
   console.log('🎯 redirectToDashboardWithTier called with:', { authToken: authToken?.substring(0, 20) + '...', email, tier, name });
   
   // Always use app.postdoserx.com - ignore redirect param to prevent loops
-  let dashboardUrl = `https://postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&tier=${tier}&dashboard=true`;
+  let dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&tier=${tier}`;
   if (name) {
     dashboardUrl += `&name=${encodeURIComponent(name)}`;
   }

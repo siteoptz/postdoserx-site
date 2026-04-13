@@ -226,7 +226,7 @@ async function handleGoogleSignUp(response) {
         // Use Supabase JWT token
         const { user, token } = authResult.data;
         userName = user.profile?.first_name || userName;
-        dashboardUrl = `https://postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=true&userId=${user.id}&dashboard=true`;
+        dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=true&userId=${user.id}`;
         console.log('✅ Using Supabase authentication');
       } else {
         throw new Error('API authentication failed, using fallback');
@@ -235,7 +235,7 @@ async function handleGoogleSignUp(response) {
       console.log('⚠️ Auth API failed, using fallback method:', apiError.message);
       // Fallback: Generate simple auth token
       const fallbackToken = generateSimpleAuthToken(email, googleId, tier);
-      dashboardUrl = `https://postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${tier}&new=true&dashboard=true`;
+      dashboardUrl = `https://app.postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${tier}&new=true`;
       console.log('✅ Using fallback authentication');
     }
     

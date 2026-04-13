@@ -11,9 +11,9 @@ End state for a paying (or trial) user:
 1. Complete Stripe checkout → land on `success.html` (or equivalent success URL from `api/create-checkout-session.js`).
 2. Sign in with Google (on `success.html` or `login.html`).
 3. Create/update GHL contact and Supabase user via APIs.
-4. Land on **app.postdoserx.com** with a session the dashboard accepts—not back on `login.html`.
+4. Land on **`app.postdoserx.com`** (the dashboard they subscribed to) with a session the app accepts—not back on marketing (`postdoserx.com` or `login.html`).
 
-**Known product issue:** After Google auth and GHL contact creation, some users still end up on `https://postdoserx.com/login.html` instead of the personalized dashboard. Fixes may span **this repo** and the **dashboard app repo** (not necessarily present in the same workspace).
+**Known product issue:** After Google auth and GHL contact creation, some users are sent to the **marketing site** or `login.html` instead of staying on **`app.postdoserx.com`**. That is incorrect for subscribers. Fixes may span **this repo** and the **dashboard app repo** (not necessarily present in the same workspace).
 
 ---
 
@@ -25,6 +25,27 @@ End state for a paying (or trial) user:
 | `app.postdoserx.com` | Dashboard UI; must accept auth from query params and/or `localStorage`, and align token expectations with the site. |
 
 Canonical API base used by `dashboard-auth.js`: `https://postdoserx.com/api`.
+
+---
+
+## Critical clarification for agents (read this first)
+
+**`postdoserx.com` is the marketing site only.** It sells the product, runs Stripe checkout, hosts `login.html`, `success.html`, and **serverless APIs** at `https://postdoserx.com/api/*`. It is **not** where subscribers live day to day.
+
+**`app.postdoserx.com` is the subscribed product — the main dashboard.** After payment and Google sign-in, the user’s **primary destination** is always **`https://app.postdoserx.com`** (with `token`, `email`, etc. in the query string on first arrival). That URL is what they paid for; do **not** treat the marketing site as “home” or “main app” for a logged-in subscriber.
+
+**Do not redirect subscribers to the marketing site** after successful Google auth except for intentional cases, for example:
+
+- User clicks **Logout** → typically `https://postdoserx.com` or `/` is fine.
+- User must **complete purchase** or **recover account** → marketing or `login.html` is appropriate.
+
+**Anti-patterns to avoid:**
+
+- Sending the user to `https://postdoserx.com`, `https://postdoserx.com/`, or marketing pages **immediately after** a successful Google sign-in or post-checkout flow.
+- Using `window.location` / router default route to the apex domain when the user should remain on **`app.postdoserx.com`**.
+- Assuming “canonical app URL” or “primary domain” means `postdoserx.com` for **authenticated dashboard** users — for them it means **`app.postdoserx.com`**.
+
+**API vs UI:** Backend calls may correctly use `https://postdoserx.com/api/...` from the browser; that does **not** mean the **browser window** should navigate to `postdoserx.com`.
 
 ---
 
