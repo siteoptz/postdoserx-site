@@ -22,7 +22,14 @@
 console.log('🔍 SUBDOMAIN CHECK - Current hostname:', window.location.hostname);
 console.log('🔍 SUBDOMAIN CHECK - Full URL:', window.location.href);
 
-if (window.location.hostname === 'app.postdoserx.com' || window.location.hostname.includes('app.postdoserx')) {
+// ALSO detect if we're on the main site but have dashboard auth params (fallback)
+const urlParams = new URLSearchParams(window.location.search);
+const hasAuthParams = urlParams.get('token') && urlParams.get('email');
+const isDashboardRequest = window.location.hostname === 'app.postdoserx.com' || 
+                          window.location.hostname.includes('app.postdoserx') ||
+                          (hasAuthParams && (urlParams.get('redirect_to_dashboard') === 'true' || urlParams.get('dashboard') === 'true'));
+
+if (isDashboardRequest) {
   console.log('🎯 DASHBOARD SUBDOMAIN DETECTED - Loading dashboard instead of marketing page');
   console.log('🔍 IMMEDIATE AUTH CHECK - URL:', window.location.href);
   
@@ -206,9 +213,10 @@ if (window.location.hostname === 'app.postdoserx.com' || window.location.hostnam
       </style>
     `;
     
-    // Load and initialize dashboard auth
+    // Load dashboard auth from marketing origin — relative "/dashboard-auth.js" would hit
+    // app.postdoserx.com and 404 if the app is a separate host/stack (see skills.md).
     const authScript = document.createElement('script');
-    authScript.src = '/dashboard-auth.js';
+    authScript.src = 'https://postdoserx.com/dashboard-auth.js';
     authScript.onload = function() {
       console.log('📱 Dashboard auth script loaded');
       
@@ -264,7 +272,7 @@ if (window.location.hostname === 'app.postdoserx.com' || window.location.hostnam
       });
     };
     authScript.onerror = function() {
-      console.error('❌ CRITICAL: Failed to load dashboard auth script from /dashboard-auth.js');
+      console.error('❌ CRITICAL: Failed to load dashboard auth script from https://postdoserx.com/dashboard-auth.js');
       console.error('❌ This means the file is not accessible or there is a CORS issue');
       
       // Try to continue with basic functionality
@@ -311,7 +319,7 @@ if (window.location.hostname === 'app.postdoserx.com' || window.location.hostnam
         console.error('❌ FALLBACK FAILED: No token or email found in URL');
         document.getElementById('dashboard-auth-status').innerHTML = \`
           <div style="background: var(--magenta-light); color: var(--magenta-dark); padding: 12px; border-radius: 4px;">
-            ❌ Authentication failed completely. <a href="/login.html" style="color: var(--magenta-dark); text-decoration: underline;">Please sign in again</a>
+            ❌ Authentication failed completely. <a href="https://postdoserx.com/login.html" style="color: var(--magenta-dark); text-decoration: underline;">Please sign in again</a>
           </div>
         \`;
       }

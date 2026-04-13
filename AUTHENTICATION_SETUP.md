@@ -135,6 +135,8 @@ The `login.html` has been updated to:
 
 Use the provided `dashboard-auth.js` script in your app.postdoserx.com pages:
 
+**Pages on `app.postdoserx.com` must use this full URL.** Do not use `/dashboard-auth.js` alone: that resolves to the app origin and will 404 if the dashboard is hosted separately from the marketing site.
+
 ```html
 <!DOCTYPE html>
 <html>
