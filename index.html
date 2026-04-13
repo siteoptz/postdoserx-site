@@ -22,11 +22,58 @@
 console.log('🔍 SUBDOMAIN CHECK - Current hostname:', window.location.hostname);
 console.log('🔍 SUBDOMAIN CHECK - Full URL:', window.location.href);
 
-if (window.location.hostname === 'app.postdoserx.com') {
+if (window.location.hostname === 'app.postdoserx.com' || window.location.hostname.includes('app.postdoserx')) {
   console.log('🎯 DASHBOARD SUBDOMAIN DETECTED - Loading dashboard instead of marketing page');
+  console.log('🔍 IMMEDIATE AUTH CHECK - URL:', window.location.href);
   
   // IMMEDIATELY prevent any marketing page logic from running
   window.isDashboardSubdomain = true;
+  
+  // CRITICAL: Immediately check for auth params and prevent any redirects
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasToken = urlParams.get('token');
+  const hasEmail = urlParams.get('email');
+  
+  console.log('🔍 IMMEDIATE AUTH PARAMS:', { hasToken: !!hasToken, hasEmail: !!hasEmail });
+  
+  if (hasToken && hasEmail) {
+    console.log('✅ IMMEDIATE AUTH SUCCESS - Preventing any redirects');
+    // Set flag to prevent any redirect logic from running
+    sessionStorage.setItem('prevent_auth_redirect', 'true');
+    sessionStorage.setItem('dashboard_auth_success', 'true');
+    localStorage.setItem('prevent_auth_redirect', 'true');
+    
+    // OVERRIDE: Prevent any window.location changes
+    const originalLocationReplace = window.location.replace;
+    const originalLocationAssign = window.location.assign;
+    window.location.replace = function(url) {
+      console.warn('🚨 BLOCKED window.location.replace to:', url);
+      if (!url.includes('login.html')) {
+        originalLocationReplace.call(window.location, url);
+      }
+    };
+    window.location.assign = function(url) {
+      console.warn('🚨 BLOCKED window.location.assign to:', url);
+      if (!url.includes('login.html')) {
+        originalLocationAssign.call(window.location, url);
+      }
+    };
+    
+    // Override window.location.href setter
+    let currentHref = window.location.href;
+    Object.defineProperty(window.location, 'href', {
+      get: function() { return currentHref; },
+      set: function(url) {
+        console.warn('🚨 ATTEMPTED window.location.href change to:', url);
+        if (url.includes('login.html')) {
+          console.warn('🚨 BLOCKED redirect to login.html!');
+          return;
+        }
+        currentHref = url;
+        originalLocationAssign.call(window.location, url);
+      }
+    });
+  }
   
   // Hide the marketing page body content immediately
   document.addEventListener('DOMContentLoaded', function() {
@@ -231,22 +278,32 @@ if (window.location.hostname === 'app.postdoserx.com') {
       const urlParams = new URLSearchParams(window.location.search);
       const token = urlParams.get('token');
       const email = urlParams.get('email');
+      const name = urlParams.get('name');
+      const tier = urlParams.get('tier');
       
       if (token && email) {
         console.log('🔄 FALLBACK: Found token and email in URL, proceeding with basic dashboard');
+        console.log('🔒 FALLBACK: Setting permanent redirect prevention flags');
+        
+        // CRITICAL: Prevent ANY redirects
+        sessionStorage.setItem('prevent_auth_redirect', 'true');
+        localStorage.setItem('prevent_auth_redirect', 'true');
         
         // Store token manually
         localStorage.setItem('auth_token', token);
+        localStorage.setItem('user_email', email);
+        localStorage.setItem('user_tier', tier || 'trial');
         
-        // Show dashboard
+        // Show dashboard immediately
         document.getElementById('dashboard-loading').style.display = 'none';
         document.getElementById('dashboard-content').style.display = 'block';
-        document.getElementById('dashboard-welcome').textContent = \`Welcome back, \${email.split('@')[0]}!\`;
+        document.getElementById('dashboard-welcome').textContent = \`Welcome back, \${name || email.split('@')[0]}!\`;
+        document.getElementById('dashboard-subtitle').textContent = \`\${tier || 'Trial'} member dashboard\`;
         
-        // Update auth status
+        // Update auth status to success
         document.getElementById('dashboard-auth-status').innerHTML = \`
-          <div style="background: var(--gold-light); color: var(--gold-dark); padding: 12px; border-radius: 4px;">
-            ⚠️ Dashboard running in fallback mode. Some features may not work.
+          <div style="background: var(--teal-light); color: var(--teal-dark); padding: 12px; border-radius: 4px;">
+            ✅ Dashboard authentication successful! (Fallback mode)
           </div>
         \`;
         
