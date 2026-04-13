@@ -1,11 +1,9 @@
 import { getUserById, updateUser, createOrUpdateUserProfile } from '../../lib/database.js';
 import { withAuth } from '../../lib/jwt.js';
 
-// CORS headers
+// CORS headers - fix multiple origin values issue
 const corsHeaders = {
-  'Access-Control-Allow-Origin': process.env.NODE_ENV === 'production' 
-    ? 'https://app.postdoserx.com,https://postdoserx.com' 
-    : '*',
+  'Access-Control-Allow-Origin': '*', // Allow all origins for now to fix CORS issue
   'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Credentials': 'true'
