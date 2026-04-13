@@ -172,13 +172,14 @@ async function handleGoogleSignIn(response) {
     const googleId = payload.sub;
     
     console.log('🔍 Google user extracted:', { email, name, googleId });
-    console.log('🔍 Context parameters:', { isPostCheckout, isSignup, tier });
     
-    // Check URL parameters for context
+    // Check URL parameters for context (must run before any log uses these)
     const urlParams = new URLSearchParams(window.location.search);
     const isPostCheckout = urlParams.get('post-checkout') === 'true';
     const isSignup = window.isSignupFlow || false;
     const tier = urlParams.get('tier') || (isPostCheckout ? 'premium' : 'trial');
+    
+    console.log('🔍 Context parameters:', { isPostCheckout, isSignup, tier });
     
     // Determine GHL contact ID if needed
     let ghlContactId = null;
@@ -199,7 +200,7 @@ async function handleGoogleSignIn(response) {
         
         const ghlResult = await ghlResponse.json();
         if (ghlResult.success) {
-          ghlContactId = ghlResult.contactId;
+          ghlContactId = ghlResult.contact?.id || ghlResult.contactId;
           console.log('✅ GHL contact created successfully:', ghlContactId);
         }
       } catch (error) {
@@ -207,30 +208,55 @@ async function handleGoogleSignIn(response) {
       }
     }
 
-    // FORCE REDIRECT: Since OAuth works and GHL gets data, just redirect immediately
-    console.log('🚀 FORCING IMMEDIATE REDIRECT - Bypassing complex auth since OAuth works');
+    // Call /api/auth/login to get proper server JWT (matching success.html flow)
+    console.log('🔑 Calling /api/auth/login to get proper JWT token');
     
-    // Create simple token for redirect
-    const quickToken = btoa(JSON.stringify({
-      email: email,
-      name: name,
-      tier: tier || 'trial',
-      timestamp: Date.now()
-    }));
-    
-    const userName = name?.split(' ')[0] || email.split('@')[0];
-    
-    // Show success message
-    showMessage(\`Welcome back, \${userName}! Redirecting to your dashboard...\`, 'success');
-    
-    // Create dashboard URL - this is what matters
-    const dashboardUrl = \`https://app.postdoserx.com?token=\${quickToken}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${googleId}\`;
-    
-    console.log('🚀 FORCING REDIRECT to:', dashboardUrl);
-    console.log('🚀 Current location:', window.location.href);
-    
-    // IMMEDIATE redirect - no setTimeout, no delays
-    window.location.href = dashboardUrl;
+    try {
+      const authResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          googleId: googleId,
+          name: name,
+          tier: tier,
+          ghlContactId: ghlContactId
+        })
+      });
+
+      const authResult = await authResponse.json();
+      
+      if (authResult.success && authResult.data?.token) {
+        // Use server JWT token
+        const { user, token } = authResult.data;
+        const userName = name?.split(' ')[0] || email.split('@')[0];
+        
+        showMessage(\`Welcome back, \${userName}! Redirecting to your dashboard...\`, 'success');
+        
+        // Create dashboard URL with proper JWT
+        const dashboardUrl = \`https://app.postdoserx.com?token=\${token}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${user.id}\`;
+        
+        console.log('🚀 Redirecting with JWT token to:', dashboardUrl);
+        window.location.href = dashboardUrl;
+        
+      } else {
+        throw new Error('Auth API failed: ' + (authResult.error || 'Unknown error'));
+      }
+      
+    } catch (authError) {
+      console.error('❌ Auth API failed, using fallback token:', authError);
+      
+      // Fallback: generate simple auth token (like success.html does)
+      const fallbackToken = generateSimpleAuthToken(email, name, tier);
+      const userName = name?.split(' ')[0] || email.split('@')[0];
+      
+      showMessage(\`Welcome back, \${userName}! Redirecting to your dashboard...\`, 'success');
+      
+      const dashboardUrl = \`https://app.postdoserx.com?token=\${fallbackToken}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${googleId}\`;
+      
+      console.log('🚀 Redirecting with fallback token to:', dashboardUrl);
+      window.location.href = dashboardUrl;
+    }
     
   } catch (error) {
     console.error('Google sign-in error:', error);
@@ -462,6 +488,19 @@ function generateAuthToken(email, provider) {
   
   // Simple token generation (in production, use proper JWT with server-side signing)
   return 'auth_' + btoa(JSON.stringify(tokenData));
+}
+
+function generateSimpleAuthToken(email, name, tier) {
+  const timestamp = Date.now();
+  const tokenData = {
+    email: email,
+    name: name,
+    tier: tier || 'trial',
+    timestamp: timestamp,
+    expires: timestamp + (24 * 60 * 60 * 1000) // 24 hours
+  };
+  
+  return 'fallback_' + btoa(JSON.stringify(tokenData));
 }
 
 function redirectToDashboard(authToken, email, name = null, tier = 'trial') {
