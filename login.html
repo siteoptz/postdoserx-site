@@ -225,89 +225,51 @@ async function handleGoogleSignIn(response) {
     
     console.log('🔍 Google user extracted:', { email, name, googleId });
     
-    // Check URL parameters for context (must run before any log uses these)
-    const urlParams = new URLSearchParams(window.location.search);
-    const isPostCheckout = urlParams.get('post-checkout') === 'true';
-    const isSignup = window.isSignupFlow || false;
-    const tier = urlParams.get('tier') || (isPostCheckout ? 'premium' : 'trial');
-    
-    console.log('🔍 Context parameters:', { isPostCheckout, isSignup, tier });
-    
-    // Determine GHL contact ID if needed
-    let ghlContactId = null;
-    
-    // Create/update GHL contact for new users or post-checkout
-    if (isPostCheckout || isSignup) {
-      try {
-        const ghlResponse = await fetch('/api/ghl-integration', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'create_contact',
-            email: email,
-            name: name || '',
-            tier: tier
-          })
-        });
-        
-        const ghlResult = await ghlResponse.json();
-        if (ghlResult.success) {
-          ghlContactId = ghlResult.contact?.id || ghlResult.contactId;
-          console.log('✅ GHL contact created successfully:', ghlContactId);
-        }
-      } catch (error) {
-        console.error('❌ GHL API error:', error);
-      }
-    }
-
-    // Call /api/auth/login to get proper server JWT (matching success.html flow)
-    console.log('🔑 Calling /api/auth/login to get proper JWT token');
+    // Authenticate directly with the dashboard API (same as dashboard login.html)
+    console.log('🔑 Calling dashboard auth API with Google credentials');
     
     try {
-      const authResponse = await fetch('/api/auth/login', {
+      const authResponse = await fetch('https://app.postdoserx.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email,
-          googleId: googleId,
           name: name,
-          tier: tier,
-          ghlContactId: ghlContactId
+          provider: 'google',
+          credential: response.credential,
+          stripe_session_id: null,
+          returning_user: false
         })
       });
 
       const authResult = await authResponse.json();
+      console.log('🔍 Dashboard API response:', authResult);
       
-      if (authResult.success && authResult.data?.token) {
-        // Use server JWT token
-        const { user, token } = authResult.data;
+      if (authResult.success && authResult.redirectUrl) {
         const userName = name?.split(' ')[0] || email.split('@')[0];
         
         showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
         
-        // Redirect to actual dashboard with proper JWT
-        const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${tier}&userId=${user.id}`;
+        // Store the auth token for the dashboard
+        if (authResult.token) {
+          localStorage.setItem('auth_token', authResult.token);
+          localStorage.setItem('user_email', email);
+          localStorage.setItem('user_name', userName);
+          localStorage.setItem('user_tier', authResult.user?.tier || 'trial');
+        }
         
-        console.log('🚀 Redirecting with JWT token to dashboard:', dashboardUrl);
-        window.location.href = dashboardUrl;
+        setTimeout(() => {
+          console.log('🚀 Redirecting to dashboard via API response:', authResult.redirectUrl);
+          window.location.href = authResult.redirectUrl;
+        }, 1500);
         
       } else {
-        throw new Error('Auth API failed: ' + (authResult.error || 'Unknown error'));
+        throw new Error('Dashboard auth API failed: ' + (authResult.error || 'Unknown error'));
       }
       
     } catch (authError) {
-      console.error('❌ Auth API failed, using fallback token:', authError);
-      
-      // Fallback: generate simple auth token (like success.html does)
-      const fallbackToken = generateSimpleAuthToken(email, name, tier);
-      const userName = name?.split(' ')[0] || email.split('@')[0];
-      
-      showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
-      
-      const dashboardUrl = `https://app.postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${tier}&userId=${googleId}`;
-      
-      console.log('🚀 Redirecting with fallback token to dashboard:', dashboardUrl);
-      window.location.href = dashboardUrl;
+      console.error('❌ Dashboard auth API failed:', authError);
+      showMessage('Authentication failed. Please try again or contact support.', 'error');
     }
     
   } catch (error) {
@@ -316,149 +278,7 @@ async function handleGoogleSignIn(response) {
   }
 }
 
-// Verify customer in GoHighLevel
-async function verifyGHLCustomer(email, isSignup = false) {
-  try {
-    console.log('Checking customer status for:', email, isSignup ? '(signup)' : '(signin)');
-    
-    // For demo mode, allow specific emails through
-    if (IS_DEMO_MODE) {
-      const demoCustomers = [
-        'demo@postdoserx.com',
-        'test@postdoserx.com',
-        'customer@postdoserx.com',
-        'siteoptz@gmail.com',
-        'antonio@siteoptz.com',
-        'siteoptz@proton.me' // Add any email you want to test with
-      ];
-      
-      // Demo mode is disabled - skip demo user checks
-      
-      if (isSignup) {
-        return {
-          isValidCustomer: true,
-          isNewCustomer: true,
-          needsSubscription: true,
-          tier: 'trial',
-          ghlData: null
-        };
-      }
-    }
-    
-    // Method 1: Direct GoHighLevel API check
-    if (!IS_DEMO_MODE) {
-      try {
-        console.log('🔍 Checking user in GHL via direct API:', email);
-        
-        const GHL_API_BASE = 'https://services.leadconnectorhq.com';
-        const GHL_API_KEY = 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
-        const GHL_LOCATION_ID = 'ECu5ScdYFmB0WnhvYoBU';
-        
-        const response = await fetch(`${GHL_API_BASE}/contacts/?locationId=${GHL_LOCATION_ID}&limit=100`, {
-          headers: {
-            'Authorization': `Bearer ${GHL_API_KEY}`,
-            'Content-Type': 'application/json',
-            'Version': '2021-07-28'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('📋 GHL direct API - total contacts:', data.contacts?.length || 0);
-          
-          // Search for the specific email in the contacts array
-          const contact = data.contacts?.find(contact => 
-            contact.email && contact.email.toLowerCase() === email.toLowerCase()
-          );
-          
-          if (contact) {
-            const tags = contact.tags || [];
-            console.log('✅ Found user in GHL:', contact.email);
-            console.log('🏷️ User tags:', tags);
-            
-            // Extract user name from contact - properly capitalize
-            const firstName = contact.firstName ? contact.firstName.charAt(0).toUpperCase() + contact.firstName.slice(1).toLowerCase() : '';
-            const lastName = contact.lastName ? contact.lastName.charAt(0).toUpperCase() + contact.lastName.slice(1).toLowerCase() : '';
-            const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
-                           firstName ? firstName : 
-                           lastName ? lastName : 
-                           contact.email.split('@')[0]; // Fallback to email username
-            
-            console.log('👤 User name:', fullName);
-            
-            // Determine tier from tags
-            let tier = 'trial'; // default
-            if (tags.some(tag => tag.toLowerCase().includes('premium') || tag.includes('PostDoseRX-premium') || tag.includes('postdoserx-premium'))) {
-              tier = 'premium';
-            } else if (tags.some(tag => tag.toLowerCase().includes('trial') || tag.includes('PostDoseRX-trial') || tag.includes('postdoserx-trial'))) {
-              tier = 'trial';
-            }
-            
-            console.log(`✅ User tier determined: ${tier}`);
-            
-            const result = {
-              isValidCustomer: true,
-              isNewCustomer: false,
-              needsSubscription: false, // They have an account, no need for subscription signup
-              tier: tier,
-              name: fullName,
-              ghlData: { tier: tier, tags: tags, contact: contact }
-            };
-            
-            console.log('🎯 GHL VERIFICATION RESULT:', result);
-            return result;
-          } else {
-            console.log('👤 User not found in GHL');
-            return {
-              isValidCustomer: false,
-              isNewCustomer: true,
-              needsSubscription: true,
-              tier: 'trial',
-              ghlData: null
-            };
-          }
-        } else {
-          console.log('GHL direct API response not ok:', response.status, 'Falling back');
-        }
-      } catch (apiError) {
-        console.log('GHL direct API failed:', apiError.message);
-      }
-    }
-    
-    // Method 2: Fallback for new signups
-    if (isSignup) {
-      return {
-        isValidCustomer: true,
-        isNewCustomer: true,
-        needsSubscription: true
-      };
-    }
-    
-    return {
-      isValidCustomer: false,
-      isNewCustomer: false,
-      needsSubscription: true
-    };
-    
-  } catch (error) {
-    console.error('Customer verification error:', error);
-    
-    // If it's a signup attempt, allow it through but mark as needing subscription
-    if (isSignup) {
-      return {
-        isValidCustomer: true,
-        isNewCustomer: true,
-        needsSubscription: true
-      };
-    }
-    
-    return {
-      isValidCustomer: false,
-      isNewCustomer: false,
-      needsSubscription: true
-    };
-  }
-}
+// Note: GHL verification removed - now using dashboard API authentication directly
 
 // Email-only login form
 document.getElementById('email-login-form').addEventListener('submit', async function(e) {
@@ -473,75 +293,45 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     submitBtn.disabled = true;
     clearMessage();
     
-    // First check if user exists in GHL
-    console.log('🔍 Checking email in GHL system:', email);
-    const ghlResult = await verifyGHLCustomer(email, false);
+    console.log('🔍 Authenticating email with dashboard API:', email);
     
-    if (ghlResult.isValidCustomer) {
-      console.log('✅ User found in GHL, authenticating...');
-      
-      // User exists in GHL - try to authenticate
-      try {
-        const authResponse = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json' 
-          },
-          body: JSON.stringify({
-            email,
-            tier: ghlResult.tier || 'trial',
-            ghlData: ghlResult.ghlData
-          })
-        });
+    // Authenticate directly with the dashboard API (like the dashboard login.html does)
+    const authResponse = await fetch('https://app.postdoserx.com/api/auth/login', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
+        email: email,
+        name: email.split('@')[0], // Use email username as fallback name
+        provider: 'email'
+      })
+    });
 
-        const authResult = await authResponse.json();
-        
-        if (authResult.success) {
-          const { user, token } = authResult.data;
-          const userName = ghlResult.name || user.profile?.first_name || email.split('@')[0];
-          
-          showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
-          
-          setTimeout(() => {
-            const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${ghlResult.tier}&userId=${user.id}`;
-            console.log('🚀 Email login with GHL data - redirecting to dashboard:', dashboardUrl);
-            window.location.href = dashboardUrl;
-          }, 1500);
-          
-        } else {
-          // API failed but user exists in GHL - create fallback token
-          console.log('⚠️ API failed, creating fallback token for known user');
-          const fallbackToken = generateSimpleAuthToken(email, ghlResult.name, ghlResult.tier);
-          const userName = ghlResult.name || email.split('@')[0];
-          
-          showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
-          
-          setTimeout(() => {
-            const dashboardUrl = `https://app.postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${ghlResult.tier}&userId=email_${btoa(email)}`;
-            console.log('🚀 Email login with fallback - redirecting to dashboard:', dashboardUrl);
-            window.location.href = dashboardUrl;
-          }, 1500);
-        }
-        
-      } catch (apiError) {
-        console.error('❌ Auth API error:', apiError);
-        
-        // API failed but user exists in GHL - create fallback token
-        const fallbackToken = generateSimpleAuthToken(email, ghlResult.name, ghlResult.tier);
-        const userName = ghlResult.name || email.split('@')[0];
-        
-        showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
-        
-        setTimeout(() => {
-          const dashboardUrl = `https://app.postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${ghlResult.tier}&userId=email_${btoa(email)}`;
-          console.log('🚀 Email login with fallback token - redirecting to dashboard:', dashboardUrl);
-          window.location.href = dashboardUrl;
-        }, 1500);
+    const authResult = await authResponse.json();
+    console.log('🔍 Dashboard API response:', authResult);
+    
+    if (authResult.success && authResult.redirectUrl) {
+      const userName = authResult.user?.name || email.split('@')[0];
+      
+      showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
+      
+      // Store the auth token for the dashboard
+      if (authResult.token) {
+        localStorage.setItem('auth_token', authResult.token);
+        localStorage.setItem('user_email', email);
+        localStorage.setItem('user_name', userName);
+        localStorage.setItem('user_tier', authResult.user?.tier || 'trial');
       }
       
+      setTimeout(() => {
+        console.log('🚀 Redirecting to dashboard via API response:', authResult.redirectUrl);
+        window.location.href = authResult.redirectUrl;
+      }, 1500);
+      
     } else {
-      // User not found in GHL - suggest Google OAuth or signup
-      console.log('❌ User not found in GHL system');
+      // User not found or authentication failed
+      console.log('❌ Authentication failed:', authResult.error || 'Unknown error');
       showMessage('No account found with that email. Please use "Continue with Google" above to sign in, or visit our homepage to create an account.', 'error');
       
       // Highlight the Google OAuth button to guide user
@@ -569,58 +359,7 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
 
 // Signup link now uses direct href - no JavaScript handler needed
 
-// Utility functions
-function generateAuthToken(email, provider) {
-  const timestamp = Date.now();
-  const tokenData = {
-    email: email,
-    provider: provider,
-    timestamp: timestamp,
-    expires: timestamp + (24 * 60 * 60 * 1000) // 24 hours
-  };
-  
-  // Simple token generation (in production, use proper JWT with server-side signing)
-  return 'auth_' + btoa(JSON.stringify(tokenData));
-}
-
-function generateSimpleAuthToken(email, name, tier) {
-  const timestamp = Date.now();
-  const tokenData = {
-    email: email,
-    name: name,
-    tier: tier || 'trial',
-    timestamp: timestamp,
-    expires: timestamp + (24 * 60 * 60 * 1000) // 24 hours
-  };
-  
-  return 'fallback_' + btoa(JSON.stringify(tokenData));
-}
-
-function redirectToDashboard(authToken, email, name = null, tier = 'trial') {
-  // Always redirect to app.postdoserx.com - the official dashboard URL
-  let dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&tier=${tier}`;
-  if (name) {
-    dashboardUrl += `&name=${encodeURIComponent(name)}`;
-  }
-  
-  console.log('🚀 Utility redirect to dashboard:', dashboardUrl);
-  window.location.href = dashboardUrl;
-}
-
-function redirectToDashboardWithTier(authToken, email, tier = 'trial', name = null) {
-  console.log('🎯 redirectToDashboardWithTier called with:', { authToken: authToken?.substring(0, 20) + '...', email, tier, name });
-  
-  // Always use app.postdoserx.com - ignore redirect param to prevent loops
-  let dashboardUrl = `https://app.postdoserx.com?token=${authToken}&email=${encodeURIComponent(email)}&tier=${tier}`;
-  if (name) {
-    dashboardUrl += `&name=${encodeURIComponent(name)}`;
-  }
-  
-  console.log('🚀 LOGIN DEBUG: Final redirect URL:', dashboardUrl);
-  console.log('🚀 LOGIN DEBUG: Redirecting now...');
-  console.log('🔥 FINAL REDIRECT URL BEING USED:', dashboardUrl);
-  window.location.href = dashboardUrl;
-}
+// Utility functions (simplified for dashboard API integration)
 
 function showMessage(text, type = 'error') {
   const container = document.getElementById('message-container');
