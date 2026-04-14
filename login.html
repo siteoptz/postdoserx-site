@@ -114,7 +114,7 @@ body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);backgro
 </div>
 
 <!-- Google OAuth -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="initializeGoogleAuth()"></script>
 
 <script>
 // Google OAuth Configuration
@@ -124,34 +124,45 @@ const IS_DEMO_MODE = false; // Set to false for production
 
 // Initialize Google OAuth
 function initializeGoogleAuth() {
-  if (typeof google !== 'undefined') {
+  console.log('🔍 Google script loaded, checking for API availability...');
+  
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
     console.log('🔍 Initializing Google OAuth with callback:', typeof handleGoogleSignIn);
     
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleSignIn,
-      auto_select: false,
-      cancel_on_tap_outside: false
-    });
-    
-    console.log('🔍 Google OAuth configuration completed');
-    
-    // Render the official Google button
-    google.accounts.id.renderButton(
-      document.getElementById('google-signin-button'),
-      { 
-        theme: 'outline', 
-        size: 'large', 
-        width: '100%',
-        text: 'continue_with'
+    try {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleSignIn,
+        auto_select: false,
+        cancel_on_tap_outside: false
+      });
+      
+      console.log('🔍 Google OAuth configuration completed');
+      
+      // Render the official Google button
+      const buttonContainer = document.getElementById('google-signin-button');
+      if (buttonContainer) {
+        google.accounts.id.renderButton(
+          buttonContainer,
+          { 
+            theme: 'outline', 
+            size: 'large', 
+            width: 368,
+            text: 'continue_with'
+          }
+        );
+        console.log('✅ Google OAuth button rendered successfully');
+      } else {
+        console.error('❌ Google sign-in button container not found');
       }
-    );
-    
-    console.log('Google OAuth initialized successfully');
+      
+      console.log('✅ Google OAuth initialized successfully');
+    } catch (error) {
+      console.error('❌ Error initializing Google OAuth:', error);
+    }
   } else {
-    console.log('Google API not loaded yet, will retry...');
-    // Retry initialization after a short delay
-    setTimeout(initializeGoogleAuth, 500);
+    console.log('⏰ Google API not ready yet, retrying in 100ms...');
+    setTimeout(initializeGoogleAuth, 100);
   }
 }
 
@@ -540,8 +551,7 @@ function clearMessage() {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialize Google OAuth
-  initializeGoogleAuth();
+  console.log('🏁 Page loaded, handling URL parameters...');
   
   // Handle URL parameters for existing users
   const urlParams = new URLSearchParams(window.location.search);
@@ -549,24 +559,27 @@ document.addEventListener('DOMContentLoaded', function() {
   const message = urlParams.get('message');
   
   if (email) {
+    console.log('📧 Pre-filling email from URL:', email);
     document.getElementById('email').value = email;
+    
+    // If user was redirected back with email, show helpful message instead of error
+    showMessage('Please complete authentication using the Google button above or verify your email below.', 'info');
   }
   
   if (message === 'existing-user') {
     showMessage('Welcome back! Please sign in to access your account.', 'info');
   }
   
-  // Auto-focus email field
-  document.getElementById('email').focus();
+  // Auto-focus email field if no email pre-filled
+  if (!email) {
+    document.getElementById('email').focus();
+  }
   
   // Handle demo login for testing
   if (window.location.search.includes('demo=true')) {
     document.getElementById('email').value = 'demo@postdoserx.com';
   }
 });
-
-// Initialize Google OAuth when script loads
-window.addEventListener('load', initializeGoogleAuth);
 </script>
 
 </body>
