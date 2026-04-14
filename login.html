@@ -126,6 +126,7 @@ const IS_DEMO_MODE = false; // Set to false for production
 function initializeGoogleAuth() {
   console.log('🔍 Google script loaded, checking for API availability...');
   
+  // Check if DOM is ready and google API is available
   if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
     console.log('🔍 Initializing Google OAuth with callback:', typeof handleGoogleSignIn);
     
@@ -139,19 +140,44 @@ function initializeGoogleAuth() {
       
       console.log('🔍 Google OAuth configuration completed');
       
-      // Render the official Google button
+      // Render the official Google button with better error handling
       const buttonContainer = document.getElementById('google-signin-button');
       if (buttonContainer) {
+        console.log('📍 Button container found, rendering Google button...');
+        
+        // Clear any existing content first
+        buttonContainer.innerHTML = '';
+        
         google.accounts.id.renderButton(
           buttonContainer,
           { 
             theme: 'outline', 
             size: 'large', 
-            width: 368,
-            text: 'continue_with'
+            width: buttonContainer.offsetWidth || 368,
+            text: 'signin_with',
+            shape: 'rectangular'
           }
         );
         console.log('✅ Google OAuth button rendered successfully');
+        
+        // Fallback: If button didn't render after 2 seconds, show custom button
+        setTimeout(() => {
+          if (!buttonContainer.querySelector('div[role="button"]') && 
+              buttonContainer.innerHTML.trim() === '') {
+            console.log('⚠️ Official button failed to render, creating fallback...');
+            buttonContainer.innerHTML = `
+              <button class="google-signin-btn" onclick="google.accounts.id.prompt()">
+                <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 12px;">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Continue with Google
+              </button>
+            `;
+          }
+        }, 2000);
       } else {
         console.error('❌ Google sign-in button container not found');
       }
@@ -159,6 +185,21 @@ function initializeGoogleAuth() {
       console.log('✅ Google OAuth initialized successfully');
     } catch (error) {
       console.error('❌ Error initializing Google OAuth:', error);
+      // Show fallback button
+      const buttonContainer = document.getElementById('google-signin-button');
+      if (buttonContainer) {
+        buttonContainer.innerHTML = `
+          <button class="google-signin-btn" onclick="google.accounts.id.prompt()">
+            <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 12px;">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Continue with Google
+          </button>
+        `;
+      }
     }
   } else {
     console.log('⏰ Google API not ready yet, retrying in 100ms...');
@@ -242,10 +283,10 @@ async function handleGoogleSignIn(response) {
         const { user, token } = authResult.data;
         const userName = name?.split(' ')[0] || email.split('@')[0];
         
-        showMessage(\`Welcome back, \${userName}! Redirecting to your dashboard...\`, 'success');
+        showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
         
         // Redirect to actual dashboard with proper JWT
-        const dashboardUrl = \`https://app.postdoserx.com?token=\${token}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${user.id}\`;
+        const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${tier}&userId=${user.id}`;
         
         console.log('🚀 Redirecting with JWT token to dashboard:', dashboardUrl);
         window.location.href = dashboardUrl;
@@ -261,9 +302,9 @@ async function handleGoogleSignIn(response) {
       const fallbackToken = generateSimpleAuthToken(email, name, tier);
       const userName = name?.split(' ')[0] || email.split('@')[0];
       
-      showMessage(\`Welcome back, \${userName}! Redirecting to your dashboard...\`, 'success');
+      showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
       
-      const dashboardUrl = \`https://app.postdoserx.com?token=\${fallbackToken}&email=\${encodeURIComponent(email)}&name=\${encodeURIComponent(userName)}&tier=\${tier}&userId=\${googleId}\`;
+      const dashboardUrl = `https://app.postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${tier}&userId=${googleId}`;
       
       console.log('🚀 Redirecting with fallback token to dashboard:', dashboardUrl);
       window.location.href = dashboardUrl;
@@ -432,35 +473,76 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     submitBtn.disabled = true;
     clearMessage();
     
-    // Try to authenticate with our API
-    const authResponse = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json' 
-      },
-      body: JSON.stringify({
-        email,
-        tier: 'trial' // Default to trial for email-only signups
-      })
-    });
-
-    const authResult = await authResponse.json();
+    // First check if user exists in GHL
+    console.log('🔍 Checking email in GHL system:', email);
+    const ghlResult = await verifyGHLCustomer(email, false);
     
-    if (authResult.success) {
-      const { user, token } = authResult.data;
-      const userName = user.profile?.first_name || email.split('@')[0];
+    if (ghlResult.isValidCustomer) {
+      console.log('✅ User found in GHL, authenticating...');
       
-      showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
-      
-      setTimeout(() => {
-        const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&userId=${user.id}`;
-        console.log('🚀 Email login - redirecting to dashboard:', dashboardUrl);
-        window.location.href = dashboardUrl;
-      }, 1500);
+      // User exists in GHL - try to authenticate
+      try {
+        const authResponse = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json' 
+          },
+          body: JSON.stringify({
+            email,
+            tier: ghlResult.tier || 'trial',
+            ghlData: ghlResult.ghlData
+          })
+        });
+
+        const authResult = await authResponse.json();
+        
+        if (authResult.success) {
+          const { user, token } = authResult.data;
+          const userName = ghlResult.name || user.profile?.first_name || email.split('@')[0];
+          
+          showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
+          
+          setTimeout(() => {
+            const dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${ghlResult.tier}&userId=${user.id}`;
+            console.log('🚀 Email login with GHL data - redirecting to dashboard:', dashboardUrl);
+            window.location.href = dashboardUrl;
+          }, 1500);
+          
+        } else {
+          // API failed but user exists in GHL - create fallback token
+          console.log('⚠️ API failed, creating fallback token for known user');
+          const fallbackToken = generateSimpleAuthToken(email, ghlResult.name, ghlResult.tier);
+          const userName = ghlResult.name || email.split('@')[0];
+          
+          showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
+          
+          setTimeout(() => {
+            const dashboardUrl = `https://app.postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${ghlResult.tier}&userId=email_${btoa(email)}`;
+            console.log('🚀 Email login with fallback - redirecting to dashboard:', dashboardUrl);
+            window.location.href = dashboardUrl;
+          }, 1500);
+        }
+        
+      } catch (apiError) {
+        console.error('❌ Auth API error:', apiError);
+        
+        // API failed but user exists in GHL - create fallback token
+        const fallbackToken = generateSimpleAuthToken(email, ghlResult.name, ghlResult.tier);
+        const userName = ghlResult.name || email.split('@')[0];
+        
+        showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
+        
+        setTimeout(() => {
+          const dashboardUrl = `https://app.postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${ghlResult.tier}&userId=email_${btoa(email)}`;
+          console.log('🚀 Email login with fallback token - redirecting to dashboard:', dashboardUrl);
+          window.location.href = dashboardUrl;
+        }, 1500);
+      }
       
     } else {
-      // User not found - suggest Google OAuth
-      showMessage('No account found. Please use "Continue with Google" above to create your account.', 'error');
+      // User not found in GHL - suggest Google OAuth or signup
+      console.log('❌ User not found in GHL system');
+      showMessage('No account found with that email. Please use "Continue with Google" above to sign in, or visit our homepage to create an account.', 'error');
       
       // Highlight the Google OAuth button to guide user
       const googleButton = document.getElementById('google-signin-button');
@@ -578,6 +660,14 @@ document.addEventListener('DOMContentLoaded', function() {
   // Handle demo login for testing
   if (window.location.search.includes('demo=true')) {
     document.getElementById('email').value = 'demo@postdoserx.com';
+  }
+  
+  // Initialize Google OAuth after DOM is ready
+  console.log('🔄 DOM ready, initializing Google OAuth...');
+  if (typeof google !== 'undefined') {
+    initializeGoogleAuth();
+  } else {
+    console.log('⏰ Google API not loaded yet, will init via onload callback');
   }
 });
 </script>
