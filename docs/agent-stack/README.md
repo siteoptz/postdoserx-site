@@ -2,6 +2,8 @@
 
 ## Overview
 
+**Reuse on other projects:** copy the agent brief from [PORTABLE_MASTER_BRIEF.md](./PORTABLE_MASTER_BRIEF.md) into a new task (preflight → implement).
+
 This repository implements a comprehensive multi-agent workflow system with 6 core capabilities:
 
 1. **obra/superpowers** - Behavior enforcement for plan → test → implement → review workflow
