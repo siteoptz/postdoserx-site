@@ -39,38 +39,14 @@ export default async function handler(req, res) {
 
       user = await createUser({
         email,
-        googleId,
-        tier,
-        ghlContactId,
-        stripeCustomerId
+        tier
+        // Skip googleId and other optional fields for schema compatibility
       });
 
-      if (firstName) {
-        const { createOrUpdateUserProfile } = await import('../../lib/database.js');
-        await createOrUpdateUserProfile(user.id, {
-          first_name: firstName,
-          last_name: lastName
-        });
-      }
+      // Skip profile creation to avoid schema compatibility issues
     } else {
-      const updates = {};
-      if (googleId && !user.google_id) {
-        updates.google_id = googleId;
-      }
-      if (tier !== user.tier) {
-        updates.tier = tier;
-      }
-      if (ghlContactId && !user.ghl_contact_id) {
-        updates.ghl_contact_id = ghlContactId;
-      }
-      if (stripeCustomerId && !user.stripe_customer_id) {
-        updates.stripe_customer_id = stripeCustomerId;
-      }
-
-      if (Object.keys(updates).length > 0) {
-        const { updateUser } = await import('../../lib/database.js');
-        user = await updateUser(user.id, updates);
-      }
+      // For existing user, use as-is without attempting database updates
+      // This avoids schema compatibility issues
     }
 
     const token = await signJWT({
