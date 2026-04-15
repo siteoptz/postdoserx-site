@@ -164,6 +164,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
+      - name: Validate suppression schemas
+        run: |
+          echo "📋 Validating suppression schemas..."
+          npm run agent:suppressions:validate || echo "⚠️ Suppression schema issues found"
+          echo "✅ Schema validation completed"
+        continue-on-error: true
+        
       - name: Run security scan
         run: |
           echo "🔒 Running security analysis..."

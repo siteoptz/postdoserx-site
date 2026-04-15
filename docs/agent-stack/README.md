@@ -197,12 +197,14 @@ npm run agent:memory:check  # Verify memory system
 docs/agent-stack/
 ├── README.md                    # This file
 ├── ENFORCEMENT_POLICY.md        # Agent enforcement policy and rules
+├── suppression.schema.json      # JSON schema for suppression validation
 ├── BASELINE.md                  # Pre-implementation state
 ├── CHANGELOG.md                 # Implementation changes
 ├── ROLLBACK.md                  # Rollback instructions
 ├── memory-bootstrap.md          # Claude-MEM configuration
 ├── security-suppressions.md    # Security scan suppressions
 ├── review-suppressions.md       # Code review suppressions
+├── ui-suppressions.md           # UI/UX quality suppressions
 ├── frontend-quality-checklist.md # UI/UX standards
 └── templates/
     ├── plan.md                  # Planning template
@@ -214,7 +216,14 @@ scripts/agent/
 ├── review-style-rules           # Style reviewer
 ├── review-performance-reliability # Performance reviewer
 ├── review-regression-history    # Regression reviewer
-└── aggregate-report             # Report aggregator
+├── aggregate-report             # Report aggregator
+├── security-scan.js             # Security vulnerability scanner
+├── ui-review.js                 # Frontend design quality reviewer
+├── validate-suppressions.js     # Suppression schema validator
+├── memory-check.js              # Claude-MEM memory system
+├── plan.js                      # Implementation planning
+├── self-review.js               # Self-review checklist
+└── orchestrate.js               # gStack orchestration
 
 .github/workflows/
 └── agent-quality.yml           # CI automation

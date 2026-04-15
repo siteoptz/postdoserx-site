@@ -30,6 +30,7 @@ Template (copy/paste per item):
 -->
 
 ## SEC-0001 - Example placeholder (remove when real entries exist)
+- type: security
 - status: removed
 - tool: example-scanner
 - rule_id: EXAMPLE_RULE
@@ -39,7 +40,7 @@ Template (copy/paste per item):
 - expiry: 2026-04-30
 - owner: engineering
 - approver: tech-lead
-- justification: Placeholder only.
+- rationale: Placeholder only.
 - remediation_plan: Remove before strict mode.
 - issue_link: N/A
 - last_reviewed: 2026-04-15

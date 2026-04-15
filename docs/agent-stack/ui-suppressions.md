@@ -30,16 +30,19 @@ Template (copy/paste per item):
 -->
 
 ## UI-0001 - Example placeholder (remove when real entries exist)
+- type: ui
 - status: removed
 - tool: ui-review
 - rule_id: EXAMPLE_RULE
 - severity: low
 - scope: index.html
+- category: visual-regression
+- impacted_flows: none
 - introduced_on: 2026-04-15
 - expiry: 2026-04-30
 - owner: frontend-team
 - approver: design-lead
-- justification: Placeholder only.
+- rationale: Placeholder only.
 - remediation_plan: Remove before strict mode.
 - issue_link: N/A
 - last_reviewed: 2026-04-15

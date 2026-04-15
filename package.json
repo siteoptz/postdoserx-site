@@ -26,7 +26,11 @@
     "agent:security": "node scripts/agent/security-scan.js",
     "agent:security:ci": "node scripts/agent/security-scan.js --summary",
     "agent:ui-review": "node scripts/agent/ui-review.js",
-    "agent:orchestrate": "node scripts/agent/orchestrate.js"
+    "agent:orchestrate": "node scripts/agent/orchestrate.js",
+    "agent:suppressions:validate": "node scripts/agent/validate-suppressions.js validate-all",
+    "agent:suppressions:validate:security": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/security-suppressions.md",
+    "agent:suppressions:validate:review": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/review-suppressions.md",
+    "agent:suppressions:validate:ui": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/ui-suppressions.md"
   },
   "dependencies": {
     "stripe": "^14.0.0",
