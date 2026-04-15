@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * Converts markdown suppression files into JSON arrays for CI validation.
+ * Strict markdown -> JSON suppression parser.
+ *
+ * Strict mode behavior:
+ * - Fails on unknown keys
+ * - Fails on duplicate keys within an entry
+ * - Fails on malformed key/value lines
+ * - Fails if ID prefix doesn't match file type
  *
  * Input:
  * - docs/agent-stack/security-suppressions.md
@@ -41,6 +47,33 @@ const FILE_MAP = [
   },
 ];
 
+// Allowed normalized keys across all suppression files
+const ALLOWED_KEYS = new Set([
+  "status",
+  "type",
+  "tool",
+  "lane",
+  "category",
+  "severity",
+  "rule_id",
+  "scope",
+  "introduced_on",
+  "expiry",
+  "owner",
+  "approver",
+  "justification",
+  "rationale",
+  "remediation_plan",
+  "removal_plan",
+  "safe_guardrails",
+  "issue_link",
+  "last_reviewed",
+  "impacted_flows",
+  "user_risk",
+  "mitigation",
+  "verification_after_fix",
+]);
+
 function parseValue(raw) {
   const v = raw.trim();
   if (/^(true|false)$/i.test(v)) return v.toLowerCase() === "true";
@@ -52,58 +85,108 @@ function normalizeKey(k) {
   return k.trim().toLowerCase().replace(/\s+/g, "_");
 }
 
-function parseMarkdownSuppressionFile(content, expectedPrefix, defaultType) {
+function fail(message) {
+  throw new Error(message);
+}
+
+function parseMarkdownSuppressionFile(content, expectedPrefix, defaultType, filename) {
   const lines = content.split(/\r?\n/);
 
   const entries = [];
   let current = null;
+  let currentLine = -1;
   let inHtmlCommentBlock = false;
 
-  for (const line of lines) {
+  function finalizeCurrent() {
+    if (!current) return;
+
+    if (!current.id) {
+      fail(`${filename}:${currentLine} entry missing id`);
+    }
+
+    // Default type if missing
+    if (!current.type) current.type = defaultType;
+
+    entries.push(current);
+    current = null;
+    currentLine = -1;
+  }
+
+  lines.forEach((line, idx) => {
+    const lineNo = idx + 1;
     const trimmed = line.trim();
 
     // Ignore HTML comment template blocks
     if (trimmed.startsWith("<!--")) {
       inHtmlCommentBlock = true;
-      continue;
+      return;
     }
     if (inHtmlCommentBlock) {
       if (trimmed.endsWith("-->")) inHtmlCommentBlock = false;
-      continue;
+      return;
     }
+
+    // Skip blanks
+    if (!trimmed) return;
 
     // Start of suppression block: "## SEC-0001 - Title"
     const h2 = trimmed.match(/^##\s+([A-Z]+-\d{4})\b(?:\s*-\s*(.+))?$/);
     if (h2) {
-      if (current && Object.keys(current).length > 0) entries.push(current);
+      finalizeCurrent();
+
       const id = h2[1];
       const title = h2[2] ? h2[2].trim() : "";
 
-      current = { id };
       if (!id.startsWith(expectedPrefix)) {
-        current.__parse_warning = `Unexpected id prefix for ${id}`;
+        fail(
+          `${filename}:${lineNo} id '${id}' must start with '${expectedPrefix}'`
+        );
       }
+
+      current = { id, type: defaultType };
+      currentLine = lineNo;
       if (title) current.title = title;
-      if (!current.type) current.type = defaultType;
-      continue;
+      return;
     }
 
-    // Key-value line: "- key: value"
-    if (current) {
-      const kv = line.match(/^\s*-\s+([^:]+):\s*(.*)$/);
-      if (kv) {
-        const key = normalizeKey(kv[1]);
-        const value = parseValue(kv[2] || "");
-        current[key] = value;
+    // For strictness: if we see "- key: value" outside an entry, fail.
+    const kv = line.match(/^\s*-\s+([^:]+):\s*(.*)$/);
+    if (kv && !current) {
+      fail(`${filename}:${lineNo} key/value found before entry heading`);
+    }
+
+    // If in an entry, enforce key/value format for bullet lines
+    if (current && trimmed.startsWith("-")) {
+      if (!kv) {
+        fail(`${filename}:${lineNo} malformed key/value line '${trimmed}'`);
       }
+
+      const key = normalizeKey(kv[1]);
+      if (!ALLOWED_KEYS.has(key)) {
+        fail(`${filename}:${lineNo} unknown key '${key}'`);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(current, key)) {
+        fail(`${filename}:${lineNo} duplicate key '${key}' in ${current.id}`);
+      }
+
+      current[key] = parseValue(kv[2] || "");
+      return;
     }
-  }
 
-  if (current && Object.keys(current).length > 0) entries.push(current);
+    // Ignore normal markdown text outside entries (headers/rules text)
+    // But disallow non-comment text inside an active entry to avoid ambiguity.
+    if (current) {
+      fail(
+        `${filename}:${lineNo} unexpected content inside ${current.id}: '${trimmed}'`
+      );
+    }
+  });
 
-  // Filter out placeholders commonly marked as removed + placeholder text
+  finalizeCurrent();
+
+  // Remove explicit placeholder examples if desired (strict but practical)
   return entries.filter((e) => {
-    if (!e.id) return false;
     const status = String(e.status || "").toLowerCase();
     const title = String(e.title || "").toLowerCase();
     const rationale = String(e.rationale || "").toLowerCase();
@@ -114,7 +197,6 @@ function parseMarkdownSuppressionFile(content, expectedPrefix, defaultType) {
       rationale.includes("placeholder only") ||
       justification.includes("placeholder only");
 
-    // Keep removed entries if they look real; drop obvious template placeholders
     if (status === "removed" && looksLikePlaceholder) return false;
     return true;
   });
@@ -134,7 +216,8 @@ function main() {
       const entries = parseMarkdownSuppressionFile(
         md,
         spec.idPrefix,
-        spec.defaultType
+        spec.defaultType,
+        path.relative(ROOT, spec.md)
       );
 
       fs.writeFileSync(spec.json, `${JSON.stringify(entries, null, 2)}\n`, "utf8");
@@ -143,8 +226,7 @@ function main() {
       );
     } catch (err) {
       hadError = true;
-      console.error(`ERROR: Failed processing ${spec.md}`);
-      console.error(err.message);
+      console.error(`ERROR: ${err.message}`);
     }
   }
 
