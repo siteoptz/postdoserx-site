@@ -573,7 +573,7 @@ function filterAgainstBaseline(findings, baseline) {
 
 // Load suppressions with expiry checking
 function loadSuppressions() {
-    const suppressionPath = path.join(process.cwd(), 'docs', 'agent-stack', 'security-suppressions.md');
+    const suppressionPath = path.join(process.cwd(), 'docs', 'agent-stack', 'security-suppressions.json');
     
     if (!fs.existsSync(suppressionPath)) {
         return [];
@@ -581,46 +581,22 @@ function loadSuppressions() {
     
     try {
         const content = fs.readFileSync(suppressionPath, 'utf8');
+        const allSuppressions = JSON.parse(content);
         const suppressions = [];
         const currentDate = new Date();
         
-        // Parse structured suppressions matching ^## (SEC|REV|UI)-\d+ format
-        const sections = content.split(/^## (SEC|REV|UI)-\d+/m).filter(section => section.trim());
-        const headers = content.match(/^## (SEC|REV|UI)-\d+[^\n]*/gm) || [];
-        
-        headers.forEach((header, index) => {
-            const section = sections[index + 1]; // sections array has different indexing due to split
-            if (!section) return;
-            
-            const lines = section.trim().split('\n');
-            
-            // Extract suppression ID from header matching ^## (SEC|REV|UI)-\d+
-            const headerMatch = header.match(/^## ((SEC|REV|UI)-\d+)/);
-            if (!headerMatch) return;
-            
-            const suppression_id = headerMatch[1];
-            
-            // Parse key-value lines that start with "- <key>: <value>"
-            const fields = {};
-            lines.forEach(line => {
-                const kvMatch = line.match(/^- ([^:]+): (.+)$/);
-                if (kvMatch) {
-                    const [, key, value] = kvMatch;
-                    fields[key.trim()] = value.trim();
-                }
-            });
-            
+        allSuppressions.forEach(suppression => {
             // Skip if missing required fields or removed
-            if (!fields.scope || !fields.rule_id || fields.status === 'removed') {
+            if (!suppression.scope || !suppression.rule_id || suppression.status === 'removed') {
                 return;
             }
             
             // Treat status=active and expiry<today as blocking failure
-            if (fields.status === 'active' && fields.expiry) {
-                const expiryDate = new Date(fields.expiry);
+            if (suppression.status === 'active' && suppression.expiry) {
+                const expiryDate = new Date(suppression.expiry);
                 if (currentDate > expiryDate) {
-                    console.error(`❌ EXPIRED SUPPRESSION: ${suppression_id} expired on ${fields.expiry}`);
-                    console.error(`   Scope: ${fields.scope}, Rule: ${fields.rule_id}`);
+                    console.error(`❌ EXPIRED SUPPRESSION: ${suppression.id} expired on ${suppression.expiry}`);
+                    console.error(`   Scope: ${suppression.scope}, Rule: ${suppression.rule_id}`);
                     console.error(`   This must be removed or renewed before CI can pass`);
                     
                     // Blocking failure for active expired suppressions
@@ -634,25 +610,25 @@ function loadSuppressions() {
                 // Warn if expiring soon (within 7 days)
                 const daysUntilExpiry = Math.ceil((expiryDate - currentDate) / (1000 * 60 * 60 * 24));
                 if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
-                    console.warn(`⚠️  Suppression ${suppression_id} expires in ${daysUntilExpiry} days`);
+                    console.warn(`⚠️  Suppression ${suppression.id} expires in ${daysUntilExpiry} days`);
                 }
             }
             
             // Emit audit log line: suppression_id, rule_id, scope, expiry, owner
-            console.log(`📋 SUPPRESSION AUDIT: ${suppression_id}, ${fields.rule_id || 'N/A'}, ${fields.scope}, ${fields.expiry || 'N/A'}, ${fields.owner || 'N/A'}`);
+            console.log(`📋 SUPPRESSION AUDIT: ${suppression.id}, ${suppression.rule_id || 'N/A'}, ${suppression.scope}, ${suppression.expiry || 'N/A'}, ${suppression.owner || 'N/A'}`);
             
             suppressions.push({
-                id: suppression_id,
-                rule_id: fields.rule_id,
-                scope: fields.scope,
-                status: fields.status,
-                expiry: fields.expiry,
-                owner: fields.owner,
-                severity: fields.severity,
+                id: suppression.id,
+                rule_id: suppression.rule_id,
+                scope: suppression.scope,
+                status: suppression.status,
+                expiry: suppression.expiry,
+                owner: suppression.owner,
+                severity: suppression.severity,
                 // Legacy compatibility
-                title: suppression_id,
-                finding: fields.rule_id,
-                file: fields.scope
+                title: suppression.id,
+                finding: suppression.rule_id,
+                file: suppression.scope
             });
         });
         
@@ -663,13 +639,6 @@ function loadSuppressions() {
     }
 }
 
-// Extract field value from suppression lines
-function extractField(lines, fieldName) {
-    const line = lines.find(l => l.trim().startsWith(`- ${fieldName}:`));
-    if (!line) return null;
-    
-    return line.split(':').slice(1).join(':').trim();
-}
 
 // Apply suppressions to findings
 function applySuppression(findings) {

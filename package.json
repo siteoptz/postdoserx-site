@@ -27,16 +27,15 @@
     "agent:security:ci": "node scripts/agent/security-scan.js --summary",
     "agent:ui-review": "node scripts/agent/ui-review.js",
     "agent:orchestrate": "node scripts/agent/orchestrate.js",
-    "agent:suppressions:validate": "node scripts/agent/validate-suppressions.js validate-all",
-    "agent:suppressions:validate:security": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/security-suppressions.md",
-    "agent:suppressions:validate:review": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/review-suppressions.md",
-    "agent:suppressions:validate:ui": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/ui-suppressions.md"
+    "agent:suppressions:validate": "node scripts/agent/validate-suppressions.js"
   },
   "dependencies": {
     "stripe": "^14.0.0",
     "jose": "^5.2.0",
     "@supabase/supabase-js": "^2.39.0",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1"
   },
   "engines": {
     "node": ">=18.0.0"

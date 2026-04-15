@@ -1,0 +1,20 @@
+[
+  {
+    "id": "UI-0001",
+    "type": "ui",
+    "status": "removed",
+    "severity": "low",
+    "rule_id": "EXAMPLE_RULE",
+    "scope": "index.html",
+    "introduced_on": "2026-04-15",
+    "expiry": "2026-04-30",
+    "owner": "frontend-team",
+    "approver": "design-lead",
+    "rationale": "Placeholder example - remove when real suppressions are added",
+    "issue_link": "N/A",
+    "last_reviewed": "2026-04-15",
+    "category": "visual-regression",
+    "impacted_flows": "none",
+    "remediation_plan": "Remove before strict mode enforcement"
+  }
+]

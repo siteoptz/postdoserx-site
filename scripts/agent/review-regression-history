@@ -11,9 +11,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Load suppressions from review-suppressions.md
+// Load suppressions from review-suppressions.json
 function loadSuppressions() {
-    const suppressionFile = path.join(process.cwd(), 'docs/agent-stack/review-suppressions.md');
+    const suppressionFile = path.join(process.cwd(), 'docs/agent-stack/review-suppressions.json');
     
     if (!fs.existsSync(suppressionFile)) {
         return [];
@@ -21,48 +21,24 @@ function loadSuppressions() {
     
     try {
         const content = fs.readFileSync(suppressionFile, 'utf8');
+        const allSuppressions = JSON.parse(content);
         const suppressions = [];
-        
-        // Parse structured suppressions matching ^## (SEC|REV|UI)-\d+ format
         const currentDate = new Date();
-        const headers = content.match(/^## (SEC|REV|UI)-\d+[^\n]*/gm) || [];
-        const sections = content.split(/^## (SEC|REV|UI)-\d+/m).filter(section => section.trim());
         
-        headers.forEach((header, index) => {
-            const section = sections[index + 1];
-            if (!section) return;
-            
-            const lines = section.trim().split('\n');
-            
-            // Extract suppression ID from header
-            const headerMatch = header.match(/^## ((SEC|REV|UI)-\d+)/);
-            if (!headerMatch) return;
-            
-            const suppression_id = headerMatch[1];
-            
-            // Parse key-value lines that start with "- <key>: <value>"
-            const fields = {};
-            lines.forEach(line => {
-                const kvMatch = line.match(/^- ([^:]+): (.+)$/);
-                if (kvMatch) {
-                    const [, key, value] = kvMatch;
-                    fields[key.trim()] = value.trim();
-                }
-            });
-            
+        allSuppressions.forEach(suppression => {
             // Skip if missing required fields, removed, or not regression lane
-            if (!fields.scope || !fields.rule_id || fields.status === 'removed') {
+            if (!suppression.scope || !suppression.rule_id || suppression.status === 'removed') {
                 return;
             }
-            if (fields.lane && !fields.lane.includes('regression')) {
+            if (suppression.lane && !suppression.lane.includes('regression')) {
                 return;
             }
             
             // Treat status=active and expiry<today as blocking failure
-            if (fields.status === 'active' && fields.expiry) {
-                const expiryDate = new Date(fields.expiry);
+            if (suppression.status === 'active' && suppression.expiry) {
+                const expiryDate = new Date(suppression.expiry);
                 if (currentDate > expiryDate) {
-                    console.error(`❌ EXPIRED SUPPRESSION: ${suppression_id} expired on ${fields.expiry}`);
+                    console.error(`❌ EXPIRED SUPPRESSION: ${suppression.id} expired on ${suppression.expiry}`);
                     if (process.argv.includes('--enforce-critical')) {
                         process.exit(2);
                     }
@@ -71,18 +47,18 @@ function loadSuppressions() {
             }
             
             // Emit audit log line
-            console.log(`📋 SUPPRESSION AUDIT: ${suppression_id}, ${fields.rule_id || 'N/A'}, ${fields.scope}, ${fields.expiry || 'N/A'}, ${fields.owner || 'N/A'}`);
+            console.log(`📋 SUPPRESSION AUDIT: ${suppression.id}, ${suppression.rule_id || 'N/A'}, ${suppression.scope}, ${suppression.expiry || 'N/A'}, ${suppression.owner || 'N/A'}`);
             
             suppressions.push({
-                id: suppression_id,
-                rule_id: fields.rule_id,
-                scope: fields.scope,
-                status: fields.status,
-                severity: fields.severity,
+                id: suppression.id,
+                rule_id: suppression.rule_id,
+                scope: suppression.scope,
+                status: suppression.status,
+                severity: suppression.severity,
                 // Legacy compatibility
-                finding: fields.rule_id,
-                file: fields.scope,
-                title: suppression_id
+                finding: suppression.rule_id,
+                file: suppression.scope,
+                title: suppression.id
             });
         });
         
@@ -697,7 +673,7 @@ function generateReport(args = []) {
         if (analysis.enforcement.shouldBlock) {
             console.log('\n🚫 REGRESSION ENFORCEMENT BLOCKING');
             console.log('   Critical regression/compatibility issues must be fixed before proceeding');
-            console.log('   Or add justified suppressions to docs/agent-stack/review-suppressions.md');
+            console.log('   Or add justified suppressions to docs/agent-stack/review-suppressions.json');
             process.exit(2);
         } else if (analysis.enforcement.exitCode === 1) {
             console.log('\n⚠️ Non-critical regression issues found (warn-only)');
