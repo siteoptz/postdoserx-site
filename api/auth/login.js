@@ -38,15 +38,7 @@ export default async function handler(req, res) {
     }
 
     // Check if user exists
-    console.log('🔍 Checking for existing user:', email);
-    let user;
-    try {
-      user = await getUserByEmail(email);
-      console.log('✅ User lookup successful:', !!user);
-    } catch (dbError) {
-      console.error('❌ Database error in getUserByEmail:', dbError.message);
-      throw new Error(`Database connection failed: ${dbError.message}`);
-    }
+    let user = await getUserByEmail(email);
     
     if (!user) {
       // Create new user
@@ -60,12 +52,10 @@ export default async function handler(req, res) {
         // Skip optional fields that may have schema compatibility issues
       });
 
-      // Skip profile creation to avoid schema compatibility issues
-      console.log('✅ User created successfully without profile:', user.email);
+      // Profile creation skipped for schema compatibility
     } else {
       // For existing user, use as-is without attempting database updates
       // This avoids schema compatibility issues
-      console.log('✅ Using existing user record without updates:', user.email);
     }
 
     // Generate JWT token
@@ -98,8 +88,7 @@ export default async function handler(req, res) {
     console.error('Login error:', error);
     return res.status(500).json({
       success: false,
-      error: `Internal server error: ${error.message}`,
-      details: error.stack
+      error: 'Internal server error'
     });
   }
 }
