@@ -27,8 +27,8 @@
     "agent:security:ci": "node scripts/agent/security-scan.js --summary",
     "agent:ui-review": "node scripts/agent/ui-review.js",
     "agent:orchestrate": "node scripts/agent/orchestrate.js",
-    "agent:suppressions:validate": "node scripts/agent/validate-suppressions.js",
     "agent:suppressions:parse": "node scripts/agent/parse-suppressions-md.js",
+    "agent:suppressions:validate": "npm run agent:suppressions:parse && node scripts/agent/validate-suppressions.js",
     "agent:suppressions:validate:security": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/security-suppressions.json",
     "agent:suppressions:validate:review": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/review-suppressions.json",
     "agent:suppressions:validate:ui": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/ui-suppressions.json"
