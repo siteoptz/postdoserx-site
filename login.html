@@ -117,6 +117,11 @@ body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);backgro
 <script src="https://accounts.google.com/gsi/client" async defer onload="initializeGoogleAuth()"></script>
 
 <script>
+// Canonical auth API on whatever host served this page (avoids www vs apex cross-origin "Failed to fetch")
+function authLoginUrl() {
+  return new URL('/api/auth/login', window.location.origin).href;
+}
+
 // Global configuration
 let GOOGLE_CLIENT_ID = null;
 
@@ -290,20 +295,18 @@ async function handleGoogleSignIn(response) {
     
     console.log('🔍 Google user extracted:', { email, name, googleId });
     
-    // Authenticate directly with the dashboard API (same as dashboard login.html)
-    console.log('🔑 Calling dashboard auth API with Google credentials');
+    // Authenticate with the canonical marketing site API (same origin as this page)
+    console.log('🔑 Calling auth API with Google credentials:', authLoginUrl());
     
     try {
-      const authResponse = await fetch('https://app.postdoserx.com/api/auth/login', {
+      const authResponse = await fetch(authLoginUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email,
+          googleId: googleId,  // Use googleId instead of credential
           name: name,
-          provider: 'google',
-          credential: response.credential,
-          stripe_session_id: null,
-          returning_user: false
+          tier: 'trial'        // Default tier for new users
         })
       });
 
@@ -313,28 +316,47 @@ async function handleGoogleSignIn(response) {
       if (!authResponse.ok) {
         const errorText = await authResponse.text();
         console.error('❌ Dashboard API HTTP error:', authResponse.status, errorText);
+        
+        // Enhanced error messaging for 500 errors (likely environment config issues)
+        if (authResponse.status === 500) {
+          console.error('🚨 SERVER ERROR: Dashboard API environment may be misconfigured');
+          console.error('🔧 Required env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY, JWT_SECRET, GHL_API_KEY');
+          showMessage('Dashboard authentication service is temporarily unavailable. Please try again in a few minutes or contact support.', 'error');
+          return; // Exit early for 500 errors
+        }
+        
         throw new Error(`HTTP ${authResponse.status}: ${errorText}`);
       }
 
       const authResult = await authResponse.json();
       console.log('🔍 Dashboard API response body:', authResult);
       
-      if (authResult.success && authResult.redirectUrl) {
-        const userName = name?.split(' ')[0] || email.split('@')[0];
+      if (authResult.success && authResult.data) {
+        const user = authResult.data.user;
+        const token = authResult.data.token;
+        const userName = name?.split(' ')[0] || user.email.split('@')[0];
         
         showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
         
         // Store the auth token for the dashboard
-        if (authResult.token) {
-          localStorage.setItem('auth_token', authResult.token);
-          localStorage.setItem('user_email', email);
+        if (token) {
+          localStorage.setItem('auth_token', token);
+          localStorage.setItem('user_email', user.email);
           localStorage.setItem('user_name', userName);
-          localStorage.setItem('user_tier', authResult.user?.tier || 'trial');
+          localStorage.setItem('user_tier', user.tier || 'trial');
         }
         
         setTimeout(() => {
-          console.log('🚀 Redirecting to dashboard via API response:', authResult.redirectUrl);
-          window.location.href = authResult.redirectUrl;
+          console.log('🚀 Redirecting to dashboard with token');
+          const q = new URLSearchParams({
+            token,
+            email: user.email,
+            tier: user.tier || 'trial',
+            name: userName,
+            userId: user.id,
+            new: 'true'
+          });
+          window.location.href = `https://app.postdoserx.com?${q.toString()}`;
         }, 1500);
         
       } else {
@@ -369,18 +391,17 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     submitBtn.disabled = true;
     clearMessage();
     
-    console.log('🔍 Authenticating email with dashboard API:', email);
+    console.log('🔍 Authenticating email with marketing auth API:', authLoginUrl());
     
-    // Authenticate directly with the dashboard API (like the dashboard login.html does)
-    const authResponse = await fetch('https://app.postdoserx.com/api/auth/login', {
+    const authResponse = await fetch(authLoginUrl(), {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json' 
       },
       body: JSON.stringify({
         email: email,
-        name: email.split('@')[0], // Use email username as fallback name
-        provider: 'email'
+        name: email.split('@')[0],
+        tier: 'trial'
       })
     });
 
@@ -390,28 +411,41 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
     if (!authResponse.ok) {
       const errorText = await authResponse.text();
       console.error('❌ Email auth API HTTP error:', authResponse.status, errorText);
+      if (authResponse.status === 500) {
+        showMessage('Authentication service is temporarily unavailable. Please try again shortly or contact support.', 'error');
+        return;
+      }
       throw new Error(`HTTP ${authResponse.status}: ${errorText}`);
     }
 
     const authResult = await authResponse.json();
     console.log('🔍 Email auth API response body:', authResult);
     
-    if (authResult.success && authResult.redirectUrl) {
-      const userName = authResult.user?.name || email.split('@')[0];
+    if (authResult.success && authResult.data) {
+      const user = authResult.data.user;
+      const token = authResult.data.token;
+      const userName = user?.profile?.first_name || email.split('@')[0];
       
       showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
       
-      // Store the auth token for the dashboard
-      if (authResult.token) {
-        localStorage.setItem('auth_token', authResult.token);
-        localStorage.setItem('user_email', email);
+      if (token) {
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('user_email', user.email);
         localStorage.setItem('user_name', userName);
-        localStorage.setItem('user_tier', authResult.user?.tier || 'trial');
+        localStorage.setItem('user_tier', user.tier || 'trial');
       }
       
       setTimeout(() => {
-        console.log('🚀 Redirecting to dashboard via API response:', authResult.redirectUrl);
-        window.location.href = authResult.redirectUrl;
+        const q = new URLSearchParams({
+          token,
+          email: user.email,
+          tier: user.tier || 'trial',
+          name: userName,
+          userId: user.id,
+          new: 'false'
+        });
+        console.log('🚀 Redirecting to dashboard');
+        window.location.href = `https://app.postdoserx.com?${q.toString()}`;
       }, 1500);
       
     } else {

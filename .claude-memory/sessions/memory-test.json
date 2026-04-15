@@ -10,5 +10,29 @@
       "nodeVersion": "v22.17.1",
       "platform": "darwin"
     }
+  },
+  {
+    "id": "mem_1776295188931",
+    "timestamp": "2026-04-15T23:19:48.931Z",
+    "type": "test",
+    "content": "AUTH DEBUG 2026-04-15: cURL works perfectly (HTTP 200 + JSON), browser fails with 'Failed to fetch'. Last working commit unknown. Root cause: browser-specific blocking (CSP/extension/incognito policy). Never assume API works without browser HAR evidence.",
+    "session": "test-session",
+    "metadata": {
+      "cwd": "/Users/siteoptz/Developer/postdoserx-site",
+      "nodeVersion": "v22.17.1",
+      "platform": "darwin"
+    }
+  },
+  {
+    "id": "mem_1776295751349",
+    "timestamp": "2026-04-15T23:29:11.349Z",
+    "type": "test",
+    "content": "CORS FIX VERIFIED 2026-04-15: OPTIONS now returns 200 (was 500), POST returns 200 with valid JWT. Fixed: invalid * + credentials, deferred DB imports. If browser still shows 'Failed to fetch', it's CSP/extension, NOT server.",
+    "session": "test-session",
+    "metadata": {
+      "cwd": "/Users/siteoptz/Developer/postdoserx-site",
+      "nodeVersion": "v22.17.1",
+      "platform": "darwin"
+    }
   }
 ]
