@@ -1,23 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Strict markdown -> JSON suppression parser.
+ * Strict markdown -> JSON suppression parser with toggle.
  *
- * Strict mode behavior:
- * - Fails on unknown keys
- * - Fails on duplicate keys within an entry
- * - Fails on malformed key/value lines
- * - Fails if ID prefix doesn't match file type
- *
- * Input:
- * - docs/agent-stack/security-suppressions.md
- * - docs/agent-stack/review-suppressions.md
- * - docs/agent-stack/ui-suppressions.md
- *
- * Output:
- * - docs/agent-stack/security-suppressions.json
- * - docs/agent-stack/review-suppressions.json
- * - docs/agent-stack/ui-suppressions.json
+ * Usage:
+ * - Strict (default): node scripts/agent/parse-suppressions-md.js
+ * - Permissive:       node scripts/agent/parse-suppressions-md.js --strict=false
  */
 
 const fs = require("fs");
@@ -25,6 +13,7 @@ const path = require("path");
 
 const ROOT = process.cwd();
 const BASE = path.join(ROOT, "docs/agent-stack");
+const STRICT = process.argv.includes("--strict=false") ? false : true;
 
 const FILE_MAP = [
   {
@@ -47,7 +36,6 @@ const FILE_MAP = [
   },
 ];
 
-// Allowed normalized keys across all suppression files
 const ALLOWED_KEYS = new Set([
   "status",
   "type",
@@ -85,38 +73,32 @@ function normalizeKey(k) {
   return k.trim().toLowerCase().replace(/\s+/g, "_");
 }
 
-function fail(message) {
-  throw new Error(message);
+function problem(message) {
+  if (STRICT) throw new Error(message);
+  console.warn(`WARN: ${message}`);
 }
 
 function parseMarkdownSuppressionFile(content, expectedPrefix, defaultType, filename) {
   const lines = content.split(/\r?\n/);
-
   const entries = [];
   let current = null;
-  let currentLine = -1;
   let inHtmlCommentBlock = false;
 
   function finalizeCurrent() {
     if (!current) return;
-
     if (!current.id) {
-      fail(`${filename}:${currentLine} entry missing id`);
+      problem(`${filename}: entry missing id`);
+      if (STRICT) return;
     }
-
-    // Default type if missing
     if (!current.type) current.type = defaultType;
-
     entries.push(current);
     current = null;
-    currentLine = -1;
   }
 
   lines.forEach((line, idx) => {
     const lineNo = idx + 1;
     const trimmed = line.trim();
 
-    // Ignore HTML comment template blocks
     if (trimmed.startsWith("<!--")) {
       inHtmlCommentBlock = true;
       return;
@@ -125,81 +107,57 @@ function parseMarkdownSuppressionFile(content, expectedPrefix, defaultType, file
       if (trimmed.endsWith("-->")) inHtmlCommentBlock = false;
       return;
     }
-
-    // Skip blanks
     if (!trimmed) return;
 
-    // Start of suppression block: "## SEC-0001 - Title"
     const h2 = trimmed.match(/^##\s+([A-Z]+-\d{4})\b(?:\s*-\s*(.+))?$/);
     if (h2) {
       finalizeCurrent();
-
       const id = h2[1];
       const title = h2[2] ? h2[2].trim() : "";
-
       if (!id.startsWith(expectedPrefix)) {
-        fail(
-          `${filename}:${lineNo} id '${id}' must start with '${expectedPrefix}'`
-        );
+        problem(`${filename}:${lineNo} id '${id}' must start with '${expectedPrefix}'`);
       }
-
       current = { id, type: defaultType };
-      currentLine = lineNo;
       if (title) current.title = title;
       return;
     }
 
-    // For strictness: if we see "- key: value" outside an entry, fail.
     const kv = line.match(/^\s*-\s+([^:]+):\s*(.*)$/);
+
     if (kv && !current) {
-      fail(`${filename}:${lineNo} key/value found before entry heading`);
+      problem(`${filename}:${lineNo} key/value found before entry heading`);
+      return;
     }
 
-    // If in an entry, enforce key/value format for bullet lines
     if (current && trimmed.startsWith("-")) {
       if (!kv) {
-        fail(`${filename}:${lineNo} malformed key/value line '${trimmed}'`);
+        problem(`${filename}:${lineNo} malformed key/value line '${trimmed}'`);
+        return;
       }
 
       const key = normalizeKey(kv[1]);
       if (!ALLOWED_KEYS.has(key)) {
-        fail(`${filename}:${lineNo} unknown key '${key}'`);
+        problem(`${filename}:${lineNo} unknown key '${key}'`);
+        if (STRICT) return;
       }
 
       if (Object.prototype.hasOwnProperty.call(current, key)) {
-        fail(`${filename}:${lineNo} duplicate key '${key}' in ${current.id}`);
+        problem(`${filename}:${lineNo} duplicate key '${key}' in ${current.id}`);
+        return;
       }
 
+      // permissive mode keeps unknown keys too
       current[key] = parseValue(kv[2] || "");
       return;
     }
 
-    // Ignore normal markdown text outside entries (headers/rules text)
-    // But disallow non-comment text inside an active entry to avoid ambiguity.
     if (current) {
-      fail(
-        `${filename}:${lineNo} unexpected content inside ${current.id}: '${trimmed}'`
-      );
+      problem(`${filename}:${lineNo} unexpected content inside ${current.id}: '${trimmed}'`);
     }
   });
 
   finalizeCurrent();
-
-  // Remove explicit placeholder examples if desired (strict but practical)
-  return entries.filter((e) => {
-    const status = String(e.status || "").toLowerCase();
-    const title = String(e.title || "").toLowerCase();
-    const rationale = String(e.rationale || "").toLowerCase();
-    const justification = String(e.justification || "").toLowerCase();
-
-    const looksLikePlaceholder =
-      title.includes("example placeholder") ||
-      rationale.includes("placeholder only") ||
-      justification.includes("placeholder only");
-
-    if (status === "removed" && looksLikePlaceholder) return false;
-    return true;
-  });
+  return entries;
 }
 
 function main() {
@@ -221,9 +179,7 @@ function main() {
       );
 
       fs.writeFileSync(spec.json, `${JSON.stringify(entries, null, 2)}\n`, "utf8");
-      console.log(
-        `Wrote ${path.relative(ROOT, spec.json)} (${entries.length} entries)`
-      );
+      console.log(`Wrote ${path.relative(ROOT, spec.json)} (${entries.length} entries)`);
     } catch (err) {
       hadError = true;
       console.error(`ERROR: ${err.message}`);
