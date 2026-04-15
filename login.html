@@ -338,16 +338,9 @@ async function handleGoogleSignIn(response) {
         
         showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
         
-        // Store the auth token for the dashboard
-        if (token) {
-          localStorage.setItem('auth_token', token);
-          localStorage.setItem('user_email', user.email);
-          localStorage.setItem('user_name', userName);
-          localStorage.setItem('user_tier', user.tier || 'trial');
-        }
-        
+        // Redirect immediately with hash parameters (no localStorage for cross-origin)
         setTimeout(() => {
-          console.log('🚀 Redirecting to dashboard with token');
+          console.log('🚀 Redirecting to dashboard with hash token handoff');
           const q = new URLSearchParams({
             token,
             email: user.email,
@@ -356,8 +349,10 @@ async function handleGoogleSignIn(response) {
             userId: user.id,
             new: 'true'
           });
-          window.location.href = `https://app.postdoserx.com?${q.toString()}`;
-        }, 1500);
+          console.log('🔍 Token handoff params:', q.toString());
+          // Use URL hash so app edge/middleware never sees the token (avoids server redirect to login before client JS runs)
+          window.location.href = `https://app.postdoserx.com/#${q.toString()}`;
+        }, 800);
         
       } else {
         throw new Error('Dashboard auth API failed: ' + (authResult.error || 'Unknown error'));
@@ -428,13 +423,7 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
       
       showMessage(`Welcome back, ${userName}! Redirecting to your dashboard...`, 'success');
       
-      if (token) {
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user_email', user.email);
-        localStorage.setItem('user_name', userName);
-        localStorage.setItem('user_tier', user.tier || 'trial');
-      }
-      
+      // Redirect with hash parameters (no localStorage for cross-origin)
       setTimeout(() => {
         const q = new URLSearchParams({
           token,
@@ -444,9 +433,10 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
           userId: user.id,
           new: 'false'
         });
-        console.log('🚀 Redirecting to dashboard');
-        window.location.href = `https://app.postdoserx.com?${q.toString()}`;
-      }, 1500);
+        console.log('🚀 Redirecting to dashboard with email auth hash handoff');
+        console.log('🔍 Token handoff params:', q.toString());
+        window.location.href = `https://app.postdoserx.com/#${q.toString()}`;
+      }, 800);
       
     } else {
       // User not found or authentication failed

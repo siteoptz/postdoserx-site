@@ -10,6 +10,27 @@
  * 3. Use authenticatedFetch() for API calls that require authentication
  */
 
+/**
+ * Merge query string and hash fragment (same shape as URLSearchParams).
+ * Hash is not sent to the server — marketing login puts token here so app middleware cannot strip auth before JS runs.
+ */
+function getMergedUrlParams() {
+  const search = new URLSearchParams(window.location.search);
+  let hash = new URLSearchParams();
+  if (window.location.hash && window.location.hash.length > 1) {
+    try {
+      hash = new URLSearchParams(window.location.hash.slice(1));
+    } catch (e) {
+      console.warn('Could not parse URL hash params:', e);
+    }
+  }
+  const merged = new URLSearchParams(search);
+  for (const [k, v] of hash.entries()) {
+    merged.set(k, v);
+  }
+  return merged;
+}
+
 class DashboardAuth {
   constructor() {
     this.token = null;
@@ -25,7 +46,7 @@ class DashboardAuth {
     console.log('🚀 Dashboard auth initializing...');
     
     // PRIORITY 1: Check for secure localStorage handoff (from success.html)
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = getMergedUrlParams();
     const hasHandoffParam = urlParams.get('handoff') === 'true';
     
     if (hasHandoffParam) {
@@ -244,6 +265,7 @@ class DashboardAuth {
     url.searchParams.delete('new');
     url.searchParams.delete('userId');
     url.searchParams.delete('handoff'); // Remove secure handoff parameter
+    url.hash = ''; // Remove client-side auth handoff fragment
     
     window.history.replaceState({}, document.title, url);
   }
