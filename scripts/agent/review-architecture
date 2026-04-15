@@ -23,27 +23,67 @@ function loadSuppressions() {
         const content = fs.readFileSync(suppressionFile, 'utf8');
         const suppressions = [];
         
-        // Parse markdown suppressions
-        const sections = content.split('###').slice(1); // Skip header
+        // Parse structured suppressions matching ^## (SEC|REV|UI)-\d+ format
+        const currentDate = new Date();
+        const headers = content.match(/^## (SEC|REV|UI)-\d+[^\n]*/gm) || [];
+        const sections = content.split(/^## (SEC|REV|UI)-\d+/m).filter(section => section.trim());
         
-        sections.forEach(section => {
+        headers.forEach((header, index) => {
+            const section = sections[index + 1];
+            if (!section) return;
+            
             const lines = section.trim().split('\n');
-            if (lines.length < 5) return;
             
-            const title = lines[0].trim();
-            const findingMatch = lines.find(l => l.startsWith('**Finding:**'));
-            const fileMatch = lines.find(l => l.startsWith('**File:**'));
-            const laneMatch = lines.find(l => l.startsWith('**Lane:**'));
-            const severityMatch = lines.find(l => l.startsWith('**Severity:**'));
+            // Extract suppression ID from header
+            const headerMatch = header.match(/^## ((SEC|REV|UI)-\d+)/);
+            if (!headerMatch) return;
             
-            if (findingMatch && fileMatch && laneMatch?.includes('architecture')) {
-                suppressions.push({
-                    finding: findingMatch.replace('**Finding:**', '').trim(),
-                    file: fileMatch.replace('**File:**', '').trim(),
-                    severity: severityMatch ? severityMatch.replace('**Severity:**', '').trim() : 'medium',
-                    title: title
-                });
+            const suppression_id = headerMatch[1];
+            
+            // Parse key-value lines that start with "- <key>: <value>"
+            const fields = {};
+            lines.forEach(line => {
+                const kvMatch = line.match(/^- ([^:]+): (.+)$/);
+                if (kvMatch) {
+                    const [, key, value] = kvMatch;
+                    fields[key.trim()] = value.trim();
+                }
+            });
+            
+            // Skip if missing required fields, removed, or not architecture lane
+            if (!fields.scope || !fields.rule_id || fields.status === 'removed') {
+                return;
             }
+            if (fields.lane && !fields.lane.includes('architecture')) {
+                return;
+            }
+            
+            // Treat status=active and expiry<today as blocking failure
+            if (fields.status === 'active' && fields.expiry) {
+                const expiryDate = new Date(fields.expiry);
+                if (currentDate > expiryDate) {
+                    console.error(`❌ EXPIRED SUPPRESSION: ${suppression_id} expired on ${fields.expiry}`);
+                    if (process.argv.includes('--enforce-critical')) {
+                        process.exit(2);
+                    }
+                    return;
+                }
+            }
+            
+            // Emit audit log line
+            console.log(`📋 SUPPRESSION AUDIT: ${suppression_id}, ${fields.rule_id || 'N/A'}, ${fields.scope}, ${fields.expiry || 'N/A'}, ${fields.owner || 'N/A'}`);
+            
+            suppressions.push({
+                id: suppression_id,
+                rule_id: fields.rule_id,
+                scope: fields.scope,
+                status: fields.status,
+                severity: fields.severity,
+                // Legacy compatibility
+                finding: fields.rule_id,
+                file: fields.scope,
+                title: suppression_id
+            });
         });
         
         return suppressions;
@@ -58,14 +98,24 @@ function applySuppressions(findings, suppressions) {
     if (suppressions.length === 0) return findings;
     
     return findings.filter(finding => {
-        const suppressed = suppressions.find(supp => 
-            finding.finding.includes(supp.finding) ||
-            finding.file.includes(supp.file) ||
-            (supp.file.includes('*') && finding.file.match(supp.file.replace(/\*/g, '.*')))
-        );
+        // Only apply suppressions when scope + rule_id both match finding
+        const matchingSuppression = suppressions.find(suppression => {
+            // Match scope (file path pattern)
+            const scopeMatches = suppression.scope === '*' || 
+                               finding.file.includes(suppression.scope) ||
+                               (suppression.scope.includes('*') && 
+                                new RegExp(suppression.scope.replace(/\*/g, '.*')).test(finding.file));
+            
+            // Match rule_id with finding content or type
+            const ruleMatches = suppression.rule_id === '*' ||
+                              finding.finding.includes(suppression.rule_id) ||
+                              finding.recommendation.includes(suppression.rule_id);
+            
+            return scopeMatches && ruleMatches && suppression.status === 'active';
+        });
         
-        if (suppressed) {
-            console.log(`   Suppressed: ${finding.finding} (${suppressed.title})`);
+        if (matchingSuppression) {
+            console.log(`   Suppressed: ${finding.finding} (${matchingSuppression.id})`);
             return false;
         }
         return true;
