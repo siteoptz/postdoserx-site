@@ -1,0 +1,336 @@
+name: Agent Quality Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  # Memory system verification
+  memory-check:
+    name: Claude-MEM Verification
+    runs-on: ubuntu-latest
+    continue-on-error: true # Warn-only mode
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Verify memory system
+        run: |
+          echo "🧠 Checking Claude-MEM system..."
+          node scripts/agent/memory-check.js status
+          echo "✅ Memory system check completed"
+        continue-on-error: true
+
+  # Code review - 5 parallel lanes
+  code-review:
+    name: 5-Lane Code Review
+    runs-on: ubuntu-latest
+    continue-on-error: true # Warn-only mode
+    strategy:
+      matrix:
+        review-lane:
+          - correctness
+          - architecture
+          - style-rules
+          - performance-reliability
+          - regression-history
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Need full history for regression analysis
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run ${{ matrix.review-lane }} review
+        run: |
+          echo "🔍 Running ${{ matrix.review-lane }} review..."
+          node scripts/agent/review-${{ matrix.review-lane }} --json > ${{ matrix.review-lane }}-results.json
+          echo "✅ ${{ matrix.review-lane }} review completed"
+        continue-on-error: true
+        
+      - name: Upload review results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.review-lane }}-review-results
+          path: ${{ matrix.review-lane }}-results.json
+          retention-days: 30
+
+  # Aggregate review report with correctness enforcement
+  aggregate-review:
+    name: Aggregate Review Report
+    runs-on: ubuntu-latest
+    needs: code-review
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Download all review results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-review-results"
+          merge-multiple: true
+        
+      - name: Generate aggregate report with correctness enforcement
+        run: |
+          echo "📊 Generating aggregate review report..."
+          echo "🎯 STEP 3 ENFORCEMENT: Correctness + Architecture/Regression critical-only blocking"
+          echo "   - BLOCKING: Critical/high issues in correctness lane"
+          echo "   - BLOCKING: Critical issues ONLY in architecture/regression lanes"  
+          echo "   - WARNING: All other lanes remain advisory"
+          echo ""
+          
+          # Run aggregate review with STEP 3 enforcement
+          node scripts/agent/aggregate-report --enforce --enforce-lanes correctness,architecture,regressionHistory --enforce-critical
+          
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 2 ]; then
+            echo ""
+            echo "🚫 CODE REVIEW BLOCKED"
+            echo "   Critical quality issues detected in enforced lanes:"
+            echo "     - Correctness: Critical/high priority logic issues"
+            echo "     - Architecture: Critical design/maintainability issues"
+            echo "     - Regression: Critical compatibility/breaking changes"
+            echo ""
+            echo "🔧 To fix:"
+            echo "   1. Review enforced lane findings above"
+            echo "   2. Fix critical issues in correctness/architecture/regression"
+            echo "   3. Run lane-specific checks locally:"
+            echo "      npm run agent:review:correctness"
+            echo "      npm run agent:review:architecture:enforce"
+            echo "      npm run agent:review:regression:enforce"
+            echo "   4. Commit fixes and retry"
+            echo ""
+            exit 1
+          elif [ $EXIT_CODE -eq 1 ]; then
+            echo ""
+            echo "⚠️  Non-blocking warnings in review lanes"
+            echo "   Critical enforcement lanes passed (correctness/architecture/regression)"
+            echo "   Other lanes have advisory findings - build will continue..."
+            echo ""
+            exit 0
+          else
+            echo ""
+            echo "✅ ALL ENFORCED REVIEW LANES PASSED"
+            echo "   No critical issues found in correctness/architecture/regression"
+            echo "   All quality gates satisfied for STEP 3 enforcement"
+            echo ""
+            exit 0
+          fi
+
+  # Security scanning
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    continue-on-error: true # Warn-only mode
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Validate suppression schemas
+        run: |
+          echo "📋 Validating suppression schemas..."
+          npm run agent:suppressions:validate || echo "⚠️ Suppression schema issues found"
+          echo "✅ Schema validation completed"
+        continue-on-error: true
+        
+      - name: Run security scan
+        run: |
+          echo "🔒 Running security analysis..."
+          node scripts/agent/security-scan.js --summary || echo "⚠️ Security issues found (warn-only mode)"
+          echo "✅ Security scan completed"
+        continue-on-error: true
+        
+      - name: Run npm audit
+        run: |
+          echo "📦 Running dependency security audit..."
+          npm audit --audit-level=high || echo "⚠️ Dependency vulnerabilities found (warn-only mode)"
+          echo "✅ Dependency audit completed"
+        continue-on-error: true
+
+  # Frontend design quality
+  frontend-quality:
+    name: Frontend Design Quality
+    runs-on: ubuntu-latest
+    continue-on-error: true # Warn-only mode
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run UI quality review
+        run: |
+          echo "🎨 Running frontend design quality review..."
+          node scripts/agent/ui-review.js --summary || echo "⚠️ Design issues found (warn-only mode)"
+          echo "✅ Frontend quality review completed"
+        continue-on-error: true
+
+  # obra/superpowers workflow enforcement
+  workflow-enforcement:
+    name: Workflow Enforcement
+    runs-on: ubuntu-latest
+    continue-on-error: true # Warn-only mode
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Check for implementation plans
+        run: |
+          echo "📋 Checking obra/superpowers workflow compliance..."
+          if [ -d "docs/superpowers/plans" ] && [ "$(ls -A docs/superpowers/plans 2>/dev/null)" ]; then
+            echo "✅ Implementation plans found"
+            ls -la docs/superpowers/plans/
+          else
+            echo "⚠️ No implementation plans found - remember to use: npm run agent:plan"
+          fi
+        continue-on-error: true
+        
+      - name: Check for self-review completion
+        run: |
+          echo "👀 Checking for recent self-reviews..."
+          if [ -d "docs/superpowers/reviews" ] && [ "$(ls -A docs/superpowers/reviews 2>/dev/null)" ]; then
+            echo "✅ Self-reviews found"
+            ls -la docs/superpowers/reviews/ | head -5
+          else
+            echo "⚠️ No self-reviews found - remember to use: npm run agent:self-review"
+          fi
+        continue-on-error: true
+
+  # gStack orchestration check
+  orchestration-check:
+    name: gStack Orchestration
+    runs-on: ubuntu-latest
+    continue-on-error: true # Warn-only mode
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Check orchestration readiness
+        run: |
+          echo "🎯 Checking gStack orchestration readiness..."
+          echo "PR Title: ${{ github.event.pull_request.title }}"
+          echo "This is a pull request - consider running gStack orchestration:"
+          echo "  npm run agent:orchestrate \"${{ github.event.pull_request.title }}\""
+          echo "✅ Orchestration check completed"
+        continue-on-error: true
+
+  # Final summary
+  quality-summary:
+    name: Quality Summary
+    runs-on: ubuntu-latest
+    needs: [memory-check, aggregate-review, security-scan, frontend-quality, workflow-enforcement]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "📊 Agent Stack Quality Summary"
+          echo "================================="
+          echo ""
+          echo "🧠 Memory Check: ${{ needs.memory-check.result }}"
+          echo "👀 Code Review: ${{ needs.aggregate-review.result }}" 
+          echo "🔒 Security Scan: ${{ needs.security-scan.result }}"
+          echo "🎨 Frontend Quality: ${{ needs.frontend-quality.result }}"
+          echo "📋 Workflow Enforcement: ${{ needs.workflow-enforcement.result }}"
+          echo ""
+          echo "ℹ️ All checks run in WARN-ONLY mode"
+          echo "   No builds are blocked by quality issues"
+          echo "   Review findings and address as appropriate"
+          echo ""
+          if [ "${{ needs.memory-check.result }}" = "success" ] && \
+             [ "${{ needs.aggregate-review.result }}" = "success" ] && \
+             [ "${{ needs.security-scan.result }}" = "success" ] && \
+             [ "${{ needs.frontend-quality.result }}" = "success" ] && \
+             [ "${{ needs.workflow-enforcement.result }}" = "success" ]; then
+            echo "✅ All quality checks passed!"
+          else
+            echo "⚠️  Some quality issues found - see job details"
+            echo "   Address issues during regular development cycle"
+          fi
+          echo ""
+          echo "📝 TODO: Switch to enforcing mode when ready"
+          echo "   Edit .github/workflows/agent-quality.yml"
+          echo "   Remove 'continue-on-error: true' for enforcement"
+
+# TODO: To enable enforcement mode, uncomment this section and remove continue-on-error flags above
+#
+# enforcement-gate:
+#   name: Quality Gate (Enforcement Mode)
+#   runs-on: ubuntu-latest
+#   needs: [memory-check, aggregate-review, security-scan, frontend-quality]
+#   if: ${{ !cancelled() }}
+#   steps:
+#     - name: Check all quality gates
+#       run: |
+#         if [ "${{ needs.memory-check.result }}" != "success" ] || \
+#            [ "${{ needs.aggregate-review.result }}" != "success" ] || \
+#            [ "${{ needs.security-scan.result }}" != "success" ] || \
+#            [ "${{ needs.frontend-quality.result }}" != "success" ]; then
+#           echo "❌ Quality gate failed - blocking merge"
+#           exit 1
+#         else
+#           echo "✅ All quality gates passed - ready to merge"
+#         fi

@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/database.js';
 import { verifyJWT } from '../../lib/jwt.js';
+import { validateAuthorizationBearer, validateHttpMethod } from '../../lib/api-request-validation.js';
 
 // CORS headers
 const corsHeaders = {
@@ -20,24 +21,24 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  if (req.method !== 'GET') {
-    return res.status(405).json({ 
-      success: false, 
-      error: 'Method not allowed' 
+  const methodValidation = validateHttpMethod(req, ['GET']);
+  if (!methodValidation.ok) {
+    return res.status(methodValidation.status).json({
+      success: false,
+      error: methodValidation.error
     });
   }
 
   try {
-    // Get and verify JWT token
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
+    const bearerValidation = validateAuthorizationBearer(req.headers.authorization);
+    if (!bearerValidation.ok) {
+      return res.status(bearerValidation.status).json({
         success: false,
-        error: 'Missing or invalid authorization header'
+        error: bearerValidation.error
       });
     }
 
-    const token = authHeader.substring(7);
+    const token = bearerValidation.token;
     let payload;
     
     try {

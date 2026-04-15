@@ -19,29 +19,47 @@ class DashboardAuth {
 
   /**
    * Initialize dashboard authentication
-   * Checks for token in URL params or localStorage, validates it, and sets up session
+   * Checks for secure localStorage handoff first, then URL params or stored token
    */
   async init() {
     console.log('🚀 Dashboard auth initializing...');
     
-    // CRITICAL: Prevent infinite redirect loops by checking if we just came from login
+    // PRIORITY 1: Check for secure localStorage handoff (from success.html)
     const urlParams = new URLSearchParams(window.location.search);
+    const hasHandoffParam = urlParams.get('handoff') === 'true';
+    
+    if (hasHandoffParam) {
+      console.log('🔐 Detected secure auth handoff from marketing site');
+      const handoffData = this.processSecureHandoff();
+      
+      if (handoffData) {
+        console.log('✅ Secure handoff successful');
+        this.cleanURL(); // Remove handoff parameter immediately
+        return true;
+      } else {
+        console.warn('⚠️ Secure handoff failed, falling back to URL/storage check');
+        // Continue to fallback methods
+      }
+    }
+    
+    // PRIORITY 2: Legacy URL parameter check (for backwards compatibility)
+    // CRITICAL: Prevent infinite redirect loops by checking if we just came from login
     const fromLogin = urlParams.get('token') && urlParams.get('email');
     
     if (fromLogin) {
-      console.log('🔄 Detected redirect from login page - preventing any further redirects during this session');
+      console.log('🔄 Detected legacy redirect from login page - preventing any further redirects during this session');
       // Set a flag to prevent redirects for this session
       sessionStorage.setItem('prevent_auth_redirect', 'true');
     }
     
-    // Check for token in URL parameters (from login redirect)
+    // Check for token in URL parameters (legacy fallback)
     const tokenFromURL = urlParams.get('token');
     const emailFromURL = urlParams.get('email');
     const tierFromURL = urlParams.get('tier');
     const userIdFromURL = urlParams.get('userId');
     const nameFromURL = urlParams.get('name');
     
-    console.log('📋 URL params:', { 
+    console.log('📋 Legacy URL params:', { 
       hasToken: !!tokenFromURL, 
       email: emailFromURL, 
       tier: tierFromURL, 
@@ -50,12 +68,12 @@ class DashboardAuth {
     
     // If we have URL parameters, use them - NEVER redirect
     if (tokenFromURL && emailFromURL) {
-      console.log('✅ Found URL parameters, using them directly');
+      console.log('⚠️ Using legacy URL parameters (consider upgrading to secure handoff)');
       
       // Store token but DON'T clean URL yet - debug first
       this.token = tokenFromURL;
       localStorage.setItem('auth_token', tokenFromURL);
-      console.log('🔍 DEBUG - Token stored successfully:', {
+      console.log('🔍 DEBUG - Legacy token stored:', {
         tokenLength: tokenFromURL.length,
         email: emailFromURL,
         tokenStart: tokenFromURL.substring(0, 20)
@@ -63,7 +81,7 @@ class DashboardAuth {
       
       // Delay URL cleaning to ensure everything works first
       setTimeout(() => {
-        console.log('🧹 Cleaning URL parameters after delay');
+        console.log('🧹 Cleaning legacy URL parameters after delay');
         this.cleanURL();
       }, 2000);
       
@@ -75,7 +93,7 @@ class DashboardAuth {
         profile: { first_name: nameFromURL }
       };
       
-      console.log('👤 User authenticated:', this.user);
+      console.log('👤 User authenticated via legacy method:', this.user);
       return true;
     }
     
@@ -152,7 +170,70 @@ class DashboardAuth {
   }
 
   /**
-   * Clean URL parameters after extracting token
+   * Process secure auth handoff from localStorage
+   * Used when redirected from success.html with ?handoff=true
+   */
+  processSecureHandoff() {
+    try {
+      const handoffDataRaw = localStorage.getItem('postdoserx_auth_handoff');
+      if (!handoffDataRaw) {
+        console.warn('🔐 No handoff data found in localStorage');
+        return false;
+      }
+      
+      const handoffData = JSON.parse(handoffDataRaw);
+      const now = Date.now();
+      const maxAge = 5 * 60 * 1000; // 5 minutes max age for security
+      
+      // Validate handoff data structure and age
+      if (!handoffData.token || !handoffData.email || !handoffData.timestamp) {
+        console.error('🔐 Invalid handoff data structure');
+        localStorage.removeItem('postdoserx_auth_handoff');
+        return false;
+      }
+      
+      if (now - handoffData.timestamp > maxAge) {
+        console.error('🔐 Handoff data expired (older than 5 minutes)');
+        localStorage.removeItem('postdoserx_auth_handoff');
+        return false;
+      }
+      
+      // Extract and validate token
+      this.token = handoffData.token;
+      localStorage.setItem('auth_token', this.token);
+      
+      // Set user info from handoff data
+      this.user = {
+        email: handoffData.email,
+        tier: handoffData.tier || 'trial',
+        id: handoffData.userId,
+        profile: { first_name: handoffData.name }
+      };
+      
+      // Clear handoff data after successful processing (one-time use)
+      localStorage.removeItem('postdoserx_auth_handoff');
+      
+      console.log('🔐 Secure handoff processed successfully:', {
+        email: handoffData.email,
+        tier: handoffData.tier,
+        source: handoffData.source,
+        age: now - handoffData.timestamp + 'ms'
+      });
+      
+      // Set redirect prevention for this session
+      sessionStorage.setItem('prevent_auth_redirect', 'true');
+      
+      return true;
+      
+    } catch (error) {
+      console.error('🔐 Error processing secure handoff:', error);
+      localStorage.removeItem('postdoserx_auth_handoff');
+      return false;
+    }
+  }
+
+  /**
+   * Clean URL parameters after extracting token or handoff
    */
   cleanURL() {
     const url = new URL(window.location);
@@ -161,6 +242,8 @@ class DashboardAuth {
     url.searchParams.delete('name');
     url.searchParams.delete('tier');
     url.searchParams.delete('new');
+    url.searchParams.delete('userId');
+    url.searchParams.delete('handoff'); // Remove secure handoff parameter
     
     window.history.replaceState({}, document.title, url);
   }

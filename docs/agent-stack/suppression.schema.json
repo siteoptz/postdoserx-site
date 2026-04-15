@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://postdoserx.com/schemas/suppression.schema.json",
+  "title": "Agent Suppression Entry",
+  "description": "Schema for validating security, review, and UI suppression entries.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "status",
+    "severity",
+    "rule_id",
+    "scope",
+    "introduced_on",
+    "expiry",
+    "owner",
+    "rationale",
+    "issue_link",
+    "last_reviewed"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(SEC|REV|UI)-\\d{4}$"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["security", "review", "ui"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "expired", "removed"]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "rule_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "introduced_on": {
+      "type": "string",
+      "format": "date"
+    },
+    "expiry": {
+      "type": "string",
+      "format": "date"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approver": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issue_link": {
+      "type": "string",
+      "minLength": 1
+    },
+    "last_reviewed": {
+      "type": "string",
+      "format": "date"
+    },
+
+    "tool": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lane": {
+      "type": "string",
+      "enum": [
+        "correctness",
+        "architecture",
+        "style-rules",
+        "performance-reliability",
+        "regression-history"
+      ]
+    },
+    "category": {
+      "type": "string",
+      "enum": ["accessibility", "semantics", "interaction", "visual-regression"]
+    },
+    "impacted_flows": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mitigation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "remediation_plan": {
+      "type": "string",
+      "minLength": 1
+    },
+    "removal_plan": {
+      "type": "string",
+      "minLength": 1
+    },
+    "safe_guardrails": {
+      "type": "string",
+      "minLength": 1
+    },
+    "user_risk": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verification_after_fix": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "type": { "const": "security" } },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["tool"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "review" } },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["lane"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "ui" } },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["category", "impacted_flows"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "active" } },
+        "required": ["status"]
+      },
+      "then": {
+        "not": {
+          "properties": { "expiry": { "const": "" } }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "severity": { "const": "critical" } },
+        "required": ["severity"]
+      },
+      "then": {
+        "required": ["approver"]
+      }
+    }
+  ]
+}

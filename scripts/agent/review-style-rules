@@ -1,0 +1,544 @@
+#!/usr/bin/env node
+
+/**
+ * Style Rules Review Lane
+ * 
+ * Reviews code for style guidelines, conventions, and documentation
+ * Part of the 5-lane parallel code review system
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+// Analyze code style and conventions
+function analyzeStyleRules() {
+    const findings = [];
+    const severity = { critical: 0, high: 0, medium: 0, low: 0 };
+    
+    console.log('🎨 Running Style Rules Review...\n');
+    
+    // 1. JavaScript style analysis
+    try {
+        const jsAnalysis = analyzeJavaScriptStyle();
+        findings.push(...jsAnalysis.findings);
+        
+        jsAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze JavaScript style: ${error.message}`);
+    }
+    
+    // 2. HTML style analysis
+    try {
+        const htmlAnalysis = analyzeHtmlStyle();
+        findings.push(...htmlAnalysis.findings);
+        
+        htmlAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze HTML style: ${error.message}`);
+    }
+    
+    // 3. CSS style analysis
+    try {
+        const cssAnalysis = analyzeCssStyle();
+        findings.push(...cssAnalysis.findings);
+        
+        cssAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze CSS style: ${error.message}`);
+    }
+    
+    // 4. Documentation analysis
+    try {
+        const docAnalysis = analyzeDocumentation();
+        findings.push(...docAnalysis.findings);
+        
+        docAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze documentation: ${error.message}`);
+    }
+    
+    return {
+        reviewType: 'style-rules',
+        findings,
+        severity,
+        summary: {
+            totalIssues: findings.length,
+            criticalIssues: severity.critical,
+            highIssues: severity.high,
+            mediumIssues: severity.medium,
+            lowIssues: severity.low
+        }
+    };
+}
+
+// Analyze JavaScript style
+function analyzeJavaScriptStyle() {
+    const findings = [];
+    
+    const jsFiles = execSync('find . -name "*.js" -not -path "./node_modules/*" -not -path "./.git/*"', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of jsFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        const lines = content.split('\n');
+        
+        // Check naming conventions
+        const functionNames = content.match(/function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g) || [];
+        const camelCasePattern = /^[a-z][a-zA-Z0-9]*$/;
+        
+        functionNames.forEach(func => {
+            const name = func.replace('function ', '');
+            if (!camelCasePattern.test(name) && !name.startsWith('_')) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: 'Function declaration',
+                    finding: `Function '${name}' doesn't follow camelCase convention`,
+                    recommendation: 'Use camelCase naming for functions (e.g., getUserData, calculateTotal)'
+                });
+            }
+        });
+        
+        // Check for consistent indentation
+        const indentationTypes = [];
+        lines.forEach((line, index) => {
+            if (line.trim().length === 0) return;
+            
+            const leadingWhitespace = line.match(/^(\s*)/)[1];
+            if (leadingWhitespace.includes('\t') && leadingWhitespace.includes(' ')) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: index + 1,
+                    finding: 'Mixed tabs and spaces for indentation',
+                    recommendation: 'Use consistent indentation (either tabs or spaces, not both)'
+                });
+            }
+        });
+        
+        // Check for proper commenting
+        const codeLines = lines.filter(line => line.trim() && !line.trim().startsWith('//')).length;
+        const commentLines = lines.filter(line => line.trim().startsWith('//')).length;
+        const blockComments = (content.match(/\/\*[\s\S]*?\*\//g) || []).length;
+        
+        const commentRatio = (commentLines + blockComments) / (codeLines || 1);
+        
+        if (codeLines > 50 && commentRatio < 0.1) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Throughout file',
+                finding: `Low comment ratio (${Math.round(commentRatio * 100)}%) for ${codeLines} lines of code`,
+                recommendation: 'Add comments to explain complex logic, especially for functions over 20 lines'
+            });
+        }
+        
+        // Check for magic numbers
+        const magicNumbers = content.match(/\b(?!0|1)\d{2,}\b/g) || [];
+        if (magicNumbers.length > 3) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Multiple locations',
+                finding: `${magicNumbers.length} potential magic numbers found`,
+                recommendation: 'Replace magic numbers with named constants for better readability'
+            });
+        }
+        
+        // Check for consistent quote usage
+        const singleQuotes = (content.match(/'/g) || []).length;
+        const doubleQuotes = (content.match(/"/g) || []).length;
+        const backticks = (content.match(/`/g) || []).length;
+        
+        if (singleQuotes > 0 && doubleQuotes > 0 && Math.abs(singleQuotes - doubleQuotes) < Math.min(singleQuotes, doubleQuotes) * 0.5) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Throughout file',
+                finding: 'Inconsistent quote usage (mixed single and double quotes)',
+                recommendation: 'Choose one quote style and use it consistently throughout the file'
+            });
+        }
+        
+        // Check for long lines
+        lines.forEach((line, index) => {
+            if (line.length > 120) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: index + 1,
+                    finding: `Line exceeds 120 characters (${line.length} chars)`,
+                    recommendation: 'Break long lines into multiple lines for better readability'
+                });
+            }
+        });
+        
+        // Check for console.log statements (should be removed in production)
+        lines.forEach((line, index) => {
+            if (line.includes('console.log') && !line.trim().startsWith('//')) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: index + 1,
+                    finding: 'console.log statement found',
+                    recommendation: 'Remove console.log statements or replace with proper logging'
+                });
+            }
+        });
+    }
+    
+    return { findings };
+}
+
+// Analyze HTML style
+function analyzeHtmlStyle() {
+    const findings = [];
+    
+    const htmlFiles = execSync('find . -name "*.html" -not -path "./node_modules/*"', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of htmlFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        const lines = content.split('\n');
+        
+        // Check for proper DOCTYPE
+        if (!content.includes('<!DOCTYPE html>')) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 1,
+                finding: 'Missing HTML5 DOCTYPE declaration',
+                recommendation: 'Add <!DOCTYPE html> at the beginning of the file'
+            });
+        }
+        
+        // Check for semantic HTML usage
+        const semanticTags = ['header', 'nav', 'main', 'section', 'article', 'aside', 'footer'];
+        const hasSemanticTags = semanticTags.some(tag => content.includes(`<${tag}`));
+        const divCount = (content.match(/<div/g) || []).length;
+        
+        if (!hasSemanticTags && divCount > 5) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Throughout file',
+                finding: `High div usage (${divCount}) without semantic HTML5 elements`,
+                recommendation: 'Use semantic HTML5 elements like header, nav, main, section, article, footer'
+            });
+        }
+        
+        // Check for consistent indentation
+        let inconsistentIndentation = false;
+        lines.forEach((line, index) => {
+            if (line.trim().length === 0) return;
+            
+            const leadingWhitespace = line.match(/^(\s*)/)[1];
+            if (leadingWhitespace.includes('\t') && leadingWhitespace.includes(' ')) {
+                inconsistentIndentation = true;
+            }
+        });
+        
+        if (inconsistentIndentation) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Multiple locations',
+                finding: 'Inconsistent indentation (mixed tabs and spaces)',
+                recommendation: 'Use consistent indentation throughout the file'
+            });
+        }
+        
+        // Check for missing lang attribute
+        if (!content.includes('lang=')) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'html tag',
+                finding: 'Missing lang attribute in html tag',
+                recommendation: 'Add lang="en" (or appropriate language) to html tag for accessibility'
+            });
+        }
+        
+        // Check for inline styles (should be minimal)
+        const inlineStyles = content.match(/style\s*=/gi) || [];
+        if (inlineStyles.length > 5) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Multiple locations',
+                finding: `Excessive inline styles (${inlineStyles.length} instances)`,
+                recommendation: 'Move inline styles to external CSS files or style tags'
+            });
+        }
+        
+        // Check for proper heading hierarchy
+        const headings = content.match(/<h[1-6][^>]*>/gi) || [];
+        if (headings.length > 0) {
+            const hasH1 = content.includes('<h1');
+            const hasH2 = content.includes('<h2');
+            
+            if (hasH2 && !hasH1) {
+                findings.push({
+                    severity: 'medium',
+                    file: file,
+                    line: 'Heading structure',
+                    finding: 'h2 elements without h1 (breaks heading hierarchy)',
+                    recommendation: 'Ensure proper heading hierarchy starting with h1'
+                });
+            }
+        }
+    }
+    
+    return { findings };
+}
+
+// Analyze CSS style
+function analyzeCssStyle() {
+    const findings = [];
+    
+    const cssFiles = execSync('find . -name "*.css" -not -path "./node_modules/*"', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of cssFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        const lines = content.split('\n');
+        
+        // Check for CSS organization
+        const mediaQueries = (content.match(/@media/g) || []).length;
+        const selectors = content.split('{').length - 1;
+        
+        if (selectors > 100 && mediaQueries === 0) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Throughout file',
+                finding: `Large CSS file (${selectors} selectors) without media queries`,
+                recommendation: 'Consider adding responsive design with media queries'
+            });
+        }
+        
+        // Check for consistent formatting
+        const inconsistentBraces = lines.some(line => {
+            const trimmed = line.trim();
+            return trimmed.endsWith('{') && trimmed.includes(' {') && trimmed.indexOf(' {') !== trimmed.lastIndexOf(' {');
+        });
+        
+        if (inconsistentBraces) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Multiple locations',
+                finding: 'Inconsistent brace formatting',
+                recommendation: 'Use consistent spacing around braces (e.g., selector { or selector{)'
+            });
+        }
+        
+        // Check for vendor prefixes
+        const vendorPrefixes = content.match(/-webkit-|-moz-|-ms-|-o-/g) || [];
+        if (vendorPrefixes.length > 10) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Multiple locations',
+                finding: `High number of vendor prefixes (${vendorPrefixes.length})`,
+                recommendation: 'Consider using autoprefixer to automatically manage vendor prefixes'
+            });
+        }
+        
+        // Check for color consistency
+        const hexColors = content.match(/#[0-9a-fA-F]{3,6}/g) || [];
+        const uniqueColors = [...new Set(hexColors)];
+        
+        if (uniqueColors.length > 15) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Throughout file',
+                finding: `Large color palette (${uniqueColors.length} unique colors)`,
+                recommendation: 'Consider using CSS custom properties for consistent color management'
+            });
+        }
+    }
+    
+    return { findings };
+}
+
+// Analyze documentation
+function analyzeDocumentation() {
+    const findings = [];
+    
+    // Check for README
+    const hasReadme = fs.existsSync('./README.md') || fs.existsSync('./readme.md');
+    if (!hasReadme) {
+        findings.push({
+            severity: 'medium',
+            file: 'project-root',
+            line: 'N/A',
+            finding: 'Missing README.md file',
+            recommendation: 'Add README.md with project description, setup instructions, and usage examples'
+        });
+    } else {
+        const readmePath = fs.existsSync('./README.md') ? './README.md' : './readme.md';
+        const readmeContent = fs.readFileSync(readmePath, 'utf8');
+        
+        if (readmeContent.length < 200) {
+            findings.push({
+                severity: 'low',
+                file: readmePath,
+                line: 'N/A',
+                finding: 'README.md appears incomplete or too brief',
+                recommendation: 'Expand README with setup instructions, usage examples, and project description'
+            });
+        }
+    }
+    
+    // Check for package.json description
+    if (fs.existsSync('./package.json')) {
+        const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+        
+        if (!packageJson.description || packageJson.description.length < 10) {
+            findings.push({
+                severity: 'low',
+                file: 'package.json',
+                line: 'description',
+                finding: 'Missing or inadequate package description',
+                recommendation: 'Add a descriptive package description in package.json'
+            });
+        }
+        
+        if (!packageJson.repository || !packageJson.repository.url) {
+            findings.push({
+                severity: 'low',
+                file: 'package.json',
+                line: 'repository',
+                finding: 'Missing repository URL',
+                recommendation: 'Add repository URL in package.json for better package management'
+            });
+        }
+    }
+    
+    // Check API documentation
+    const apiFiles = execSync('find ./api -name "*.js" 2>/dev/null || echo ""', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    if (apiFiles.length > 0) {
+        let documentedEndpoints = 0;
+        
+        apiFiles.forEach(file => {
+            if (!fs.existsSync(file)) return;
+            
+            const content = fs.readFileSync(file, 'utf8');
+            const hasDocComments = content.includes('/**') || content.includes('* @');
+            
+            if (hasDocComments) {
+                documentedEndpoints++;
+            }
+        });
+        
+        const documentationRatio = documentedEndpoints / apiFiles.length;
+        
+        if (documentationRatio < 0.5) {
+            findings.push({
+                severity: 'medium',
+                file: 'api/*',
+                line: 'Throughout API files',
+                finding: `Low API documentation coverage (${Math.round(documentationRatio * 100)}%)`,
+                recommendation: 'Add JSDoc comments to API endpoints describing parameters, return values, and usage'
+            });
+        }
+    }
+    
+    return { findings };
+}
+
+// Generate style rules review report
+function generateReport() {
+    const analysis = analyzeStyleRules();
+    
+    console.log('📊 STYLE RULES REVIEW RESULTS');
+    console.log('=' .repeat(50));
+    console.log(`Total Issues: ${analysis.summary.totalIssues}`);
+    console.log(`Critical: ${analysis.summary.criticalIssues}`);
+    console.log(`High: ${analysis.summary.highIssues}`);
+    console.log(`Medium: ${analysis.summary.mediumIssues}`);
+    console.log(`Low: ${analysis.summary.lowIssues}\n`);
+    
+    if (analysis.findings.length === 0) {
+        console.log('✅ No style rule violations found!\n');
+    } else {
+        console.log('🔍 DETAILED FINDINGS:\n');
+        
+        // Group by severity
+        const grouped = {
+            critical: analysis.findings.filter(f => f.severity === 'critical'),
+            high: analysis.findings.filter(f => f.severity === 'high'),
+            medium: analysis.findings.filter(f => f.severity === 'medium'),
+            low: analysis.findings.filter(f => f.severity === 'low')
+        };
+        
+        ['critical', 'high', 'medium', 'low'].forEach(sev => {
+            if (grouped[sev].length > 0) {
+                const icon = sev === 'critical' ? '🚨' : sev === 'high' ? '⚠️' : sev === 'medium' ? '💡' : 'ℹ️';
+                console.log(`${icon} ${sev.toUpperCase()} (${grouped[sev].length} issues):`);
+                
+                grouped[sev].slice(0, 5).forEach((finding, index) => {
+                    console.log(`\n${index + 1}. ${finding.finding}`);
+                    console.log(`   File: ${finding.file}:${finding.line}`);
+                    console.log(`   Recommendation: ${finding.recommendation}`);
+                });
+                
+                if (grouped[sev].length > 5) {
+                    console.log(`\n   ... and ${grouped[sev].length - 5} more ${sev} issues`);
+                }
+                console.log('');
+            }
+        });
+    }
+    
+    return analysis;
+}
+
+// Main execution
+function main() {
+    const command = process.argv[2];
+    
+    switch (command) {
+        case '--json':
+            const analysis = analyzeStyleRules();
+            console.log(JSON.stringify(analysis, null, 2));
+            break;
+            
+        default:
+            generateReport();
+            break;
+    }
+}
+
+// Only run if this file is executed directly
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    analyzeStyleRules,
+    generateReport
+};

@@ -1,0 +1,588 @@
+#!/usr/bin/env node
+
+/**
+ * Aggregate Report Generator
+ * 
+ * Combines results from all 5 parallel code review lanes
+ * Part of the 5-lane parallel code review system
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+// Import all review modules
+const { analyzeCorrectness } = require('./review-correctness');
+const { analyzeArchitecture } = require('./review-architecture');
+const { analyzeStyleRules } = require('./review-style-rules');
+const { analyzePerformanceReliability } = require('./review-performance-reliability');
+const { analyzeRegressionHistory } = require('./review-regression-history');
+
+// Run all review lanes in parallel (simulated)
+async function runAllReviews(args = []) {
+    console.log('🚀 Starting 5-Lane Parallel Code Review System...\n');
+    
+    const reviews = {
+        correctness: null,
+        architecture: null,
+        styleRules: null,
+        performanceReliability: null,
+        regressionHistory: null
+    };
+    
+    const startTime = Date.now();
+    
+    try {
+        // Run all reviews
+        console.log('🔍 Running correctness review...');
+        reviews.correctness = analyzeCorrectness();
+        
+        console.log('🏗️ Running architecture review...');
+        reviews.architecture = analyzeArchitecture(args);
+        
+        console.log('🎨 Running style rules review...');
+        reviews.styleRules = analyzeStyleRules();
+        
+        console.log('⚡ Running performance & reliability review...');
+        reviews.performanceReliability = analyzePerformanceReliability();
+        
+        console.log('🔄 Running regression & history review...');
+        reviews.regressionHistory = analyzeRegressionHistory(args);
+        
+        const endTime = Date.now();
+        const duration = ((endTime - startTime) / 1000).toFixed(2);
+        
+        console.log(`\n✅ All reviews completed in ${duration} seconds\n`);
+        
+    } catch (error) {
+        console.error(`❌ Error running reviews: ${error.message}`);
+        process.exit(1);
+    }
+    
+    return reviews;
+}
+
+// Generate aggregate report
+function generateAggregateReport(reviews, options = {}) {
+    const { saveToFile = true, format = 'console' } = options;
+    
+    // Combine all findings
+    const allFindings = [];
+    const reviewSummaries = {};
+    const totalSeverity = { critical: 0, high: 0, medium: 0, low: 0 };
+    
+    // Process each review
+    Object.entries(reviews).forEach(([reviewType, analysis]) => {
+        if (!analysis || !analysis.findings) return;
+        
+        // Add review type to each finding
+        const findingsWithType = analysis.findings.map(finding => ({
+            ...finding,
+            reviewType,
+            reviewTypeLabel: getReviewTypeLabel(reviewType)
+        }));
+        
+        allFindings.push(...findingsWithType);
+        
+        // Track summaries
+        reviewSummaries[reviewType] = analysis.summary;
+        
+        // Sum up severity counts
+        Object.keys(totalSeverity).forEach(sev => {
+            totalSeverity[sev] += analysis.severity[sev] || 0;
+        });
+    });
+    
+    // Sort findings by severity
+    const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+    allFindings.sort((a, b) => 
+        (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0)
+    );
+    
+    // Generate report
+    const report = {
+        timestamp: new Date().toISOString(),
+        summary: {
+            totalFindings: allFindings.length,
+            totalCritical: totalSeverity.critical,
+            totalHigh: totalSeverity.high,
+            totalMedium: totalSeverity.medium,
+            totalLow: totalSeverity.low
+        },
+        reviewSummaries,
+        findings: allFindings,
+        recommendations: generateRecommendations(allFindings, totalSeverity)
+    };
+    
+    // Output based on format
+    switch (format) {
+        case 'json':
+            console.log(JSON.stringify(report, null, 2));
+            break;
+            
+        case 'markdown':
+            outputMarkdownReport(report);
+            break;
+            
+        case 'console':
+        default:
+            outputConsoleReport(report);
+            break;
+    }
+    
+    // Save to file if requested
+    if (saveToFile) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const reportPath = path.join(process.cwd(), 'docs', 'superpowers', 'reviews', `aggregate-review-${timestamp}.json`);
+        
+        // Ensure directory exists
+        const reportDir = path.dirname(reportPath);
+        if (!fs.existsSync(reportDir)) {
+            fs.mkdirSync(reportDir, { recursive: true });
+        }
+        
+        fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+        console.log(`\n💾 Detailed report saved to: ${reportPath}`);
+    }
+    
+    return report;
+}
+
+// Get human-readable review type labels
+function getReviewTypeLabel(reviewType) {
+    const labels = {
+        correctness: 'Correctness',
+        architecture: 'Architecture',
+        styleRules: 'Style Rules',
+        performanceReliability: 'Performance & Reliability',
+        regressionHistory: 'Regression & History'
+    };
+    
+    return labels[reviewType] || reviewType;
+}
+
+// Generate recommendations based on findings
+function generateRecommendations(findings, severityTotals) {
+    const recommendations = [];
+    
+    // Critical issues recommendations
+    if (severityTotals.critical > 0) {
+        recommendations.push({
+            priority: 'critical',
+            action: '🚨 IMMEDIATE ACTION REQUIRED',
+            description: `${severityTotals.critical} critical issues must be resolved before deployment`,
+            nextSteps: [
+                'Stop current deployment process',
+                'Fix all critical issues immediately',
+                'Re-run code review after fixes',
+                'Conduct thorough testing'
+            ]
+        });
+    }
+    
+    // High priority recommendations
+    if (severityTotals.high > 5) {
+        recommendations.push({
+            priority: 'high',
+            action: '⚠️ REVIEW REQUIRED',
+            description: `${severityTotals.high} high-priority issues need attention`,
+            nextSteps: [
+                'Address high-priority issues before merge',
+                'Consider pair programming for complex fixes',
+                'Update tests to cover identified gaps',
+                'Document any accepted technical debt'
+            ]
+        });
+    }
+    
+    // Quality improvement recommendations
+    if (severityTotals.medium > 10) {
+        recommendations.push({
+            priority: 'medium',
+            action: '💡 QUALITY IMPROVEMENT',
+            description: `${severityTotals.medium} medium-priority issues identified`,
+            nextSteps: [
+                'Plan refactoring session to address issues',
+                'Consider adding linting rules',
+                'Update team coding standards',
+                'Schedule technical debt reduction sprint'
+            ]
+        });
+    }
+    
+    // Code quality recommendations
+    if (severityTotals.low > 20) {
+        recommendations.push({
+            priority: 'low',
+            action: 'ℹ️ CODE QUALITY',
+            description: `${severityTotals.low} low-priority improvements suggested`,
+            nextSteps: [
+                'Address during regular refactoring',
+                'Consider automation tools',
+                'Update documentation and examples',
+                'Review team practices and guidelines'
+            ]
+        });
+    }
+    
+    // Overall health recommendations
+    const totalIssues = Object.values(severityTotals).reduce((a, b) => a + b, 0);
+    if (totalIssues === 0) {
+        recommendations.push({
+            priority: 'success',
+            action: '✅ EXCELLENT CODE QUALITY',
+            description: 'No issues found across all review lanes',
+            nextSteps: [
+                'Proceed with confidence',
+                'Consider this as a best practice example',
+                'Share success patterns with team',
+                'Maintain current quality standards'
+            ]
+        });
+    } else if (totalIssues < 5) {
+        recommendations.push({
+            priority: 'good',
+            action: '✨ GOOD CODE QUALITY',
+            description: 'Minimal issues found - good work!',
+            nextSteps: [
+                'Address remaining issues as time permits',
+                'Continue current development practices',
+                'Consider documenting successful patterns'
+            ]
+        });
+    }
+    
+    return recommendations;
+}
+
+// Output console report
+function outputConsoleReport(report) {
+    console.log('📊 AGGREGATE CODE REVIEW REPORT');
+    console.log('=' .repeat(60));
+    console.log(`Report Generated: ${new Date(report.timestamp).toLocaleString()}`);
+    console.log('');
+    
+    // Overall summary
+    console.log('📈 OVERALL SUMMARY');
+    console.log('-' .repeat(30));
+    console.log(`Total Findings: ${report.summary.totalFindings}`);
+    console.log(`🚨 Critical: ${report.summary.totalCritical}`);
+    console.log(`⚠️  High: ${report.summary.totalHigh}`);
+    console.log(`💡 Medium: ${report.summary.totalMedium}`);
+    console.log(`ℹ️  Low: ${report.summary.totalLow}`);
+    console.log('');
+    
+    // Review lane breakdown
+    console.log('🔍 REVIEW LANE BREAKDOWN');
+    console.log('-' .repeat(30));
+    
+    Object.entries(report.reviewSummaries).forEach(([type, summary]) => {
+        const label = getReviewTypeLabel(type);
+        const total = summary.totalIssues || 0;
+        const critical = summary.criticalIssues || 0;
+        const high = summary.highIssues || 0;
+        
+        const status = critical > 0 ? '🚨' : high > 0 ? '⚠️' : total > 0 ? '💡' : '✅';
+        console.log(`${status} ${label}: ${total} issues (${critical}C, ${high}H)`);
+    });
+    console.log('');
+    
+    // Top critical/high issues
+    const criticalFindings = report.findings.filter(f => f.severity === 'critical');
+    const highFindings = report.findings.filter(f => f.severity === 'high');
+    
+    if (criticalFindings.length > 0) {
+        console.log('🚨 CRITICAL ISSUES (MUST FIX)');
+        console.log('-' .repeat(30));
+        criticalFindings.slice(0, 5).forEach((finding, index) => {
+            console.log(`${index + 1}. [${finding.reviewTypeLabel}] ${finding.finding}`);
+            console.log(`   File: ${finding.file}:${finding.line}`);
+            console.log(`   Fix: ${finding.recommendation}`);
+            console.log('');
+        });
+        
+        if (criticalFindings.length > 5) {
+            console.log(`   ... and ${criticalFindings.length - 5} more critical issues\n`);
+        }
+    }
+    
+    if (highFindings.length > 0) {
+        console.log('⚠️  HIGH PRIORITY ISSUES');
+        console.log('-' .repeat(30));
+        highFindings.slice(0, 3).forEach((finding, index) => {
+            console.log(`${index + 1}. [${finding.reviewTypeLabel}] ${finding.finding}`);
+            console.log(`   File: ${finding.file}:${finding.line}`);
+            console.log(`   Fix: ${finding.recommendation}`);
+            console.log('');
+        });
+        
+        if (highFindings.length > 3) {
+            console.log(`   ... and ${highFindings.length - 3} more high priority issues\n`);
+        }
+    }
+    
+    // Recommendations
+    console.log('🎯 RECOMMENDATIONS');
+    console.log('-' .repeat(30));
+    report.recommendations.forEach(rec => {
+        console.log(`${rec.action}`);
+        console.log(`${rec.description}`);
+        console.log('Next Steps:');
+        rec.nextSteps.forEach(step => {
+            console.log(`  • ${step}`);
+        });
+        console.log('');
+    });
+    
+    // Code review status
+    const blockingIssues = report.summary.totalCritical + report.summary.totalHigh;
+    
+    console.log('🔒 CODE REVIEW STATUS');
+    console.log('-' .repeat(30));
+    
+    if (blockingIssues === 0) {
+        console.log('✅ APPROVED - Ready for merge');
+        console.log('   All critical and high-priority issues resolved');
+        console.log('   Consider addressing medium/low priority items over time');
+    } else {
+        console.log('❌ BLOCKED - Cannot merge');
+        console.log(`   ${blockingIssues} blocking issues must be resolved first`);
+        console.log('   Re-run review after fixes are implemented');
+    }
+    
+    console.log('');
+}
+
+// Output markdown report
+function outputMarkdownReport(report) {
+    const md = `# Code Review Report
+
+**Generated:** ${new Date(report.timestamp).toLocaleString()}
+
+## Summary
+
+| Severity | Count |
+|----------|-------|
+| 🚨 Critical | ${report.summary.totalCritical} |
+| ⚠️ High | ${report.summary.totalHigh} |
+| 💡 Medium | ${report.summary.totalMedium} |
+| ℹ️ Low | ${report.summary.totalLow} |
+| **Total** | **${report.summary.totalFindings}** |
+
+## Review Lane Results
+
+${Object.entries(report.reviewSummaries).map(([type, summary]) => {
+    const label = getReviewTypeLabel(type);
+    const total = summary.totalIssues || 0;
+    const status = summary.criticalIssues > 0 ? '🚨' : summary.highIssues > 0 ? '⚠️' : total > 0 ? '💡' : '✅';
+    return `- ${status} **${label}**: ${total} issues`;
+}).join('\n')}
+
+## Critical Issues
+
+${report.findings.filter(f => f.severity === 'critical').map((finding, index) => `
+### ${index + 1}. ${finding.finding}
+
+- **File:** \`${finding.file}:${finding.line}\`
+- **Review Lane:** ${finding.reviewTypeLabel}
+- **Recommendation:** ${finding.recommendation}
+`).join('') || 'No critical issues found.'}
+
+## Recommendations
+
+${report.recommendations.map(rec => `
+### ${rec.action}
+
+${rec.description}
+
+**Next Steps:**
+${rec.nextSteps.map(step => `- ${step}`).join('\n')}
+`).join('')}
+
+## Review Status
+
+${report.summary.totalCritical + report.summary.totalHigh === 0 
+    ? '✅ **APPROVED** - Ready for merge' 
+    : '❌ **BLOCKED** - Fix blocking issues before merge'
+}
+`;
+    
+    console.log(md);
+}
+
+// Main execution
+async function main() {
+    const args = process.argv.slice(2);
+    const command = args[0];
+    const format = args[1] || 'console';
+    
+    // Parse enforcement flags
+    const isEnforcementMode = args.includes('--enforce');
+    const enforceLanes = args.includes('--enforce-lanes') ? 
+        args[args.indexOf('--enforce-lanes') + 1].split(',') : [];
+    
+    try {
+        const reviews = await runAllReviews(args);
+        
+        switch (command) {
+            case '--summary-only':
+                // Quick summary without detailed findings
+                const summaryReport = generateAggregateReport(reviews, { 
+                    saveToFile: false, 
+                    format: 'console' 
+                });
+                
+                // Check for enforcement in summary mode
+                if (isEnforcementMode) {
+                    const blockingResult = checkEnforcementRules(summaryReport, enforceLanes);
+                    process.exit(blockingResult.exitCode);
+                }
+                break;
+                
+            case '--json':
+                const jsonReport = generateAggregateReport(reviews, { 
+                    saveToFile: true, 
+                    format: 'json' 
+                });
+                
+                if (isEnforcementMode) {
+                    const blockingResult = checkEnforcementRules(jsonReport, enforceLanes);
+                    process.exit(blockingResult.exitCode);
+                }
+                break;
+                
+            case '--markdown':
+                generateAggregateReport(reviews, { 
+                    saveToFile: true, 
+                    format: 'markdown' 
+                });
+                break;
+                
+            default:
+                const fullReport = generateAggregateReport(reviews, { 
+                    saveToFile: true, 
+                    format: format 
+                });
+                
+                // Enforcement mode logic
+                if (isEnforcementMode) {
+                    const blockingResult = checkEnforcementRules(fullReport, enforceLanes);
+                    
+                    console.log('\n📊 ENFORCEMENT RESULT');
+                    console.log('-'.repeat(30));
+                    console.log(blockingResult.message);
+                    
+                    if (blockingResult.exitCode === 2) {
+                        console.log('\n🚫 CODE REVIEW BLOCKED');
+                        console.log('   Fix critical/high issues in enforced lanes before merge');
+                    } else if (blockingResult.exitCode === 1) {
+                        console.log('\n⚠️ CODE REVIEW WARNINGS');
+                        console.log('   Address issues during regular development');
+                    } else {
+                        console.log('\n✅ CODE REVIEW PASSED');
+                        console.log('   All enforced quality gates satisfied');
+                    }
+                    
+                    process.exit(blockingResult.exitCode);
+                } else {
+                    // Legacy warn-only mode
+                    const blockingIssues = fullReport.summary.totalCritical + fullReport.summary.totalHigh;
+                    if (blockingIssues > 0) {
+                        console.log(`\n🚫 Exiting with error code due to ${blockingIssues} blocking issues`);
+                        process.exit(1);
+                    } else {
+                        console.log('\n✅ All checks passed!');
+                        process.exit(0);
+                    }
+                }
+        }
+        
+    } catch (error) {
+        console.error(`❌ Aggregate review failed: ${error.message}`);
+        process.exit(1);
+    }
+}
+
+// Check enforcement rules for specific lanes
+function checkEnforcementRules(report, enforceLanes) {
+    if (enforceLanes.length === 0) {
+        // No specific lanes enforced, use legacy logic
+        const blockingIssues = report.summary.totalCritical + report.summary.totalHigh;
+        return {
+            exitCode: blockingIssues > 0 ? 1 : 0,
+            message: blockingIssues > 0 ? 
+                `${blockingIssues} blocking issues found (warn-only)` : 
+                'No blocking issues found'
+        };
+    }
+    
+    let criticalBlocking = 0;
+    let highBlocking = 0;
+    let totalWarnings = 0;
+    const blockingDetails = [];
+    
+    // Check each enforced lane
+    enforceLanes.forEach(lane => {
+        const review = report.reviewSummaries[lane];
+        if (!review) {
+            console.warn(`Warning: Review lane '${lane}' not found`);
+            return;
+        }
+        
+        const critical = review.criticalIssues || 0;
+        const high = review.highIssues || 0;
+        const medium = review.mediumIssues || 0;
+        const low = review.lowIssues || 0;
+        
+        // STEP 3 enforcement: architecture and regression lanes only block on critical
+        if (lane === 'architecture' || lane === 'regressionHistory') {
+            criticalBlocking += critical;
+            // High issues are warnings for these lanes in STEP 3
+            totalWarnings += high + medium + low;
+            
+            if (critical > 0) {
+                blockingDetails.push(`${lane}: ${critical}C (STEP 3: critical-only)`);
+            }
+        } else {
+            // Other lanes (like correctness) continue with critical + high blocking
+            criticalBlocking += critical;
+            highBlocking += high;
+            totalWarnings += medium + low;
+            
+            if (critical > 0 || high > 0) {
+                blockingDetails.push(`${lane}: ${critical}C ${high}H`);
+            }
+        }
+    });
+    
+    // Determine exit code and message
+    if (criticalBlocking > 0 || highBlocking > 0) {
+        return {
+            exitCode: 2, // Blocking failure
+            message: `ENFORCED lanes have ${criticalBlocking} critical, ${highBlocking} high issues\n   Blocking lanes: ${blockingDetails.join(', ')}`
+        };
+    } else if (totalWarnings > 0) {
+        return {
+            exitCode: 1, // Warnings only
+            message: `Enforced lanes clean, ${totalWarnings} warnings in other areas`
+        };
+    } else {
+        return {
+            exitCode: 0, // Success
+            message: `All enforced lanes (${enforceLanes.join(', ')}) passed quality gates`
+        };
+    }
+}
+
+// Only run if this file is executed directly
+if (require.main === module) {
+    main().catch(error => {
+        console.error('Fatal error:', error);
+        process.exit(1);
+    });
+}
+
+module.exports = {
+    runAllReviews,
+    generateAggregateReport
+};

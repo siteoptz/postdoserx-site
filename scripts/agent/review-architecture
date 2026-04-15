@@ -1,0 +1,552 @@
+#!/usr/bin/env node
+
+/**
+ * Architecture Review Lane
+ * 
+ * Reviews code for design patterns, modularity, and maintainability
+ * Part of the 5-lane parallel code review system
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+// Load suppressions from review-suppressions.json
+function loadSuppressions() {
+    const suppressionFile = path.join(process.cwd(), 'docs/agent-stack/review-suppressions.json');
+    
+    if (!fs.existsSync(suppressionFile)) {
+        return [];
+    }
+    
+    try {
+        const content = fs.readFileSync(suppressionFile, 'utf8');
+        const allSuppressions = JSON.parse(content);
+        const suppressions = [];
+        const currentDate = new Date();
+        
+        allSuppressions.forEach(suppression => {
+            // Skip if missing required fields, removed, or not architecture lane
+            if (!suppression.scope || !suppression.rule_id || suppression.status === 'removed') {
+                return;
+            }
+            if (suppression.lane && !suppression.lane.includes('architecture')) {
+                return;
+            }
+            
+            // Treat status=active and expiry<today as blocking failure
+            if (suppression.status === 'active' && suppression.expiry) {
+                const expiryDate = new Date(suppression.expiry);
+                if (currentDate > expiryDate) {
+                    console.error(`❌ EXPIRED SUPPRESSION: ${suppression.id} expired on ${suppression.expiry}`);
+                    if (process.argv.includes('--enforce-critical')) {
+                        process.exit(2);
+                    }
+                    return;
+                }
+            }
+            
+            // Emit audit log line
+            console.log(`📋 SUPPRESSION AUDIT: ${suppression.id}, ${suppression.rule_id || 'N/A'}, ${suppression.scope}, ${suppression.expiry || 'N/A'}, ${suppression.owner || 'N/A'}`);
+            
+            suppressions.push({
+                id: suppression.id,
+                rule_id: suppression.rule_id,
+                scope: suppression.scope,
+                status: suppression.status,
+                severity: suppression.severity,
+                // Legacy compatibility
+                finding: suppression.rule_id,
+                file: suppression.scope,
+                title: suppression.id
+            });
+        });
+        
+        return suppressions;
+    } catch (error) {
+        console.warn(`Warning: Could not load suppressions: ${error.message}`);
+        return [];
+    }
+}
+
+// Apply suppressions to findings
+function applySuppressions(findings, suppressions) {
+    if (suppressions.length === 0) return findings;
+    
+    return findings.filter(finding => {
+        // Only apply suppressions when scope + rule_id both match finding
+        const matchingSuppression = suppressions.find(suppression => {
+            // Match scope (file path pattern)
+            const scopeMatches = suppression.scope === '*' || 
+                               finding.file.includes(suppression.scope) ||
+                               (suppression.scope.includes('*') && 
+                                new RegExp(suppression.scope.replace(/\*/g, '.*')).test(finding.file));
+            
+            // Match rule_id with finding content or type
+            const ruleMatches = suppression.rule_id === '*' ||
+                              finding.finding.includes(suppression.rule_id) ||
+                              finding.recommendation.includes(suppression.rule_id);
+            
+            return scopeMatches && ruleMatches && suppression.status === 'active';
+        });
+        
+        if (matchingSuppression) {
+            console.log(`   Suppressed: ${finding.finding} (${matchingSuppression.id})`);
+            return false;
+        }
+        return true;
+    });
+}
+
+// Check enforcement rules for architecture lane
+function checkEnforcementRules(findings, args) {
+    const isEnforcementMode = args.includes('--enforce-critical');
+    
+    if (!isEnforcementMode) {
+        return { shouldBlock: false, exitCode: 0 };
+    }
+    
+    // In STEP 3: Only critical architecture issues are blocking
+    const criticalIssues = findings.filter(f => f.severity === 'critical').length;
+    
+    if (criticalIssues > 0) {
+        return { shouldBlock: true, exitCode: 2, criticalCount: criticalIssues };
+    }
+    
+    // High/medium/low are warnings only
+    const warningIssues = findings.filter(f => f.severity !== 'critical').length;
+    if (warningIssues > 0) {
+        return { shouldBlock: false, exitCode: 1, warningCount: warningIssues };
+    }
+    
+    return { shouldBlock: false, exitCode: 0 };
+}
+
+// Analyze code architecture
+function analyzeArchitecture(args = []) {
+    const findings = [];
+    const severity = { critical: 0, high: 0, medium: 0, low: 0 };
+    
+    // Load suppressions
+    const suppressions = loadSuppressions();
+    if (suppressions.length > 0) {
+        console.log(`📋 Loaded ${suppressions.length} architecture suppressions`);
+    }
+    
+    console.log('🏗️ Running Architecture Review...\n');
+    
+    // 1. Analyze project structure
+    try {
+        const projectStructure = analyzeProjectStructure();
+        findings.push(...projectStructure.findings);
+        
+        // Update severity counts
+        projectStructure.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        findings.push({
+            severity: 'high',
+            file: 'project-structure',
+            line: 'N/A',
+            finding: `Error analyzing project structure: ${error.message}`,
+            recommendation: 'Review project organization and file permissions'
+        });
+        severity.high++;
+    }
+    
+    // 2. Analyze module dependencies and coupling
+    try {
+        const dependencyAnalysis = analyzeDependencies();
+        findings.push(...dependencyAnalysis.findings);
+        
+        dependencyAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze dependencies: ${error.message}`);
+    }
+    
+    // 3. Analyze code organization patterns
+    try {
+        const organizationAnalysis = analyzeCodeOrganization();
+        findings.push(...organizationAnalysis.findings);
+        
+        organizationAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze code organization: ${error.message}`);
+    }
+    
+    // Apply suppressions
+    const originalFindings = [...findings];
+    const filteredFindings = applySuppressions(findings, suppressions);
+    
+    // Recalculate severity counts after suppressions
+    const filteredSeverity = { critical: 0, high: 0, medium: 0, low: 0 };
+    filteredFindings.forEach(finding => {
+        filteredSeverity[finding.severity]++;
+    });
+    
+    // Check enforcement rules
+    const enforcement = checkEnforcementRules(filteredFindings, args);
+    
+    return {
+        reviewType: 'architecture',
+        findings: filteredFindings,
+        originalFindings,
+        severity: filteredSeverity,
+        suppressionCount: originalFindings.length - filteredFindings.length,
+        enforcement,
+        summary: {
+            totalIssues: filteredFindings.length,
+            criticalIssues: filteredSeverity.critical,
+            highIssues: filteredSeverity.high,
+            mediumIssues: filteredSeverity.medium,
+            lowIssues: filteredSeverity.low
+        }
+    };
+}
+
+// Analyze project structure
+function analyzeProjectStructure() {
+    const findings = [];
+    
+    // Check for proper separation of concerns
+    const hasApiDirectory = fs.existsSync('./api');
+    const hasAssetsDirectory = fs.existsSync('./assets');
+    const hasLibDirectory = fs.existsSync('./lib');
+    const hasDocsDirectory = fs.existsSync('./docs');
+    
+    if (!hasApiDirectory && fs.existsSync('./index.html')) {
+        findings.push({
+            severity: 'medium',
+            file: 'project-structure',
+            line: 'N/A',
+            finding: 'Missing API directory for backend functionality',
+            recommendation: 'Create /api directory to separate backend logic from frontend'
+        });
+    }
+    
+    if (!hasAssetsDirectory) {
+        findings.push({
+            severity: 'low',
+            file: 'project-structure',
+            line: 'N/A',
+            finding: 'No dedicated assets directory found',
+            recommendation: 'Consider organizing CSS, JS, and images in /assets directory'
+        });
+    }
+    
+    // Check for configuration files in root
+    const rootFiles = fs.readdirSync('./').filter(file => !file.startsWith('.'));
+    const configFiles = rootFiles.filter(file => 
+        file.endsWith('.json') || 
+        file.endsWith('.js') || 
+        file.endsWith('.md') ||
+        file.startsWith('package') ||
+        file.startsWith('vercel')
+    );
+    
+    if (configFiles.length > 8) {
+        findings.push({
+            severity: 'low',
+            file: 'project-structure',
+            line: 'N/A',
+            finding: `${configFiles.length} configuration files in root directory`,
+            recommendation: 'Consider moving some config files to a /config directory'
+        });
+    }
+    
+    // Check for mixing of concerns in HTML files
+    const htmlFiles = execSync('find . -name "*.html" -not -path "./node_modules/*"', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of htmlFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        const hasInlineCSS = content.includes('<style>');
+        const hasInlineJS = content.includes('<script>') && !content.match(/<script[^>]*src=/);
+        
+        if (hasInlineCSS && hasInlineJS) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Multiple locations',
+                finding: 'HTML file contains both inline CSS and JavaScript',
+                recommendation: 'Extract inline styles and scripts to separate files for better maintainability'
+            });
+        }
+    }
+    
+    return { findings };
+}
+
+// Analyze module dependencies
+function analyzeDependencies() {
+    const findings = [];
+    
+    // Check package.json for dependency management
+    if (fs.existsSync('./package.json')) {
+        const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+        const deps = packageJson.dependencies || {};
+        const devDeps = packageJson.devDependencies || {};
+        
+        const totalDeps = Object.keys(deps).length + Object.keys(devDeps).length;
+        
+        if (totalDeps > 50) {
+            findings.push({
+                severity: 'medium',
+                file: 'package.json',
+                line: 'dependencies',
+                finding: `High number of dependencies (${totalDeps})`,
+                recommendation: 'Review dependencies for unused packages and consider dependency consolidation'
+            });
+        }
+        
+        // Check for potential dependency conflicts
+        const commonConflicts = [
+            ['lodash', 'underscore'],
+            ['moment', 'date-fns'],
+            ['axios', 'fetch']
+        ];
+        
+        commonConflicts.forEach(([pkg1, pkg2]) => {
+            if (deps[pkg1] && deps[pkg2]) {
+                findings.push({
+                    severity: 'medium',
+                    file: 'package.json',
+                    line: 'dependencies',
+                    finding: `Potential dependency conflict: ${pkg1} and ${pkg2}`,
+                    recommendation: `Consider standardizing on one package: choose either ${pkg1} or ${pkg2}`
+                });
+            }
+        });
+    }
+    
+    // Analyze JavaScript imports/requires
+    const jsFiles = execSync('find . -name "*.js" -not -path "./node_modules/*" -not -path "./.git/*"', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of jsFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        
+        // Check for circular dependencies (basic detection)
+        const imports = content.match(/require\(['"`]([^'"`]+)['"`]\)|import.*from\s+['"`]([^'"`]+)['"`]/g) || [];
+        const localImports = imports.filter(imp => 
+            imp.includes('./') || imp.includes('../')
+        ).length;
+        
+        if (localImports > 10) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Multiple imports',
+                finding: `High number of local imports (${localImports})`,
+                recommendation: 'Consider breaking down into smaller modules or using a dependency injection pattern'
+            });
+        }
+        
+        // Check for deep relative imports
+        const deepImports = imports.filter(imp => 
+            (imp.match(/\.\.\//g) || []).length > 2
+        );
+        
+        if (deepImports.length > 0) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Import statements',
+                finding: `Deep relative imports found (${deepImports.length})`,
+                recommendation: 'Consider using absolute imports or restructuring module hierarchy'
+            });
+        }
+    }
+    
+    return { findings };
+}
+
+// Analyze code organization patterns
+function analyzeCodeOrganization() {
+    const findings = [];
+    
+    // Check for API organization patterns
+    if (fs.existsSync('./api')) {
+        const apiFiles = execSync('find ./api -name "*.js"', 
+            { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+        
+        for (const file of apiFiles) {
+            if (!fs.existsSync(file)) continue;
+            
+            const content = fs.readFileSync(file, 'utf8');
+            const lines = content.split('\n');
+            
+            // Check for proper handler structure
+            const hasExportedHandler = content.includes('module.exports') || 
+                                      content.includes('export default') ||
+                                      content.includes('export {');
+            
+            if (!hasExportedHandler) {
+                findings.push({
+                    severity: 'medium',
+                    file: file,
+                    line: 'N/A',
+                    finding: 'API file without proper export structure',
+                    recommendation: 'Ensure API handlers are properly exported for Vercel deployment'
+                });
+            }
+            
+            // Check for mixed HTTP methods in single file
+            const httpMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+            const foundMethods = httpMethods.filter(method => 
+                content.includes(`req.method === '${method}'`) ||
+                content.includes(`method === '${method}'`)
+            );
+            
+            if (foundMethods.length > 2) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: 'Multiple methods',
+                    finding: `API handler supports ${foundMethods.length} HTTP methods`,
+                    recommendation: 'Consider splitting into separate handlers per HTTP method for better organization'
+                });
+            }
+            
+            // Check for missing error handling structure
+            const hasErrorHandling = content.includes('try') && content.includes('catch');
+            const hasStatusCodes = content.includes('res.status(') || content.includes('.status(');
+            
+            if (!hasErrorHandling && !hasStatusCodes) {
+                findings.push({
+                    severity: 'medium',
+                    file: file,
+                    line: 'Handler structure',
+                    finding: 'API handler lacks proper error handling structure',
+                    recommendation: 'Add try-catch blocks and proper HTTP status code responses'
+                });
+            }
+        }
+    }
+    
+    // Check for frontend organization
+    const htmlFiles = execSync('find . -maxdepth 1 -name "*.html"', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    if (htmlFiles.length > 5) {
+        findings.push({
+            severity: 'low',
+            file: 'project-structure',
+            line: 'N/A',
+            finding: `${htmlFiles.length} HTML files in root directory`,
+            recommendation: 'Consider organizing pages into subdirectories (e.g., /pages, /views)'
+        });
+    }
+    
+    return { findings };
+}
+
+// Generate architecture review report
+function generateReport(args = []) {
+    const analysis = analyzeArchitecture(args);
+    
+    console.log('📊 ARCHITECTURE REVIEW RESULTS');
+    console.log('=' .repeat(50));
+    console.log(`Total Issues: ${analysis.summary.totalIssues}`);
+    console.log(`Critical: ${analysis.summary.criticalIssues}`);
+    console.log(`High: ${analysis.summary.highIssues}`);
+    console.log(`Medium: ${analysis.summary.mediumIssues}`);
+    console.log(`Low: ${analysis.summary.lowIssues}`);
+    
+    if (analysis.suppressionCount > 0) {
+        console.log(`Suppressed: ${analysis.suppressionCount}`);
+    }
+    
+    // Show enforcement status
+    if (analysis.enforcement.shouldBlock) {
+        console.log('🚫 ENFORCEMENT: BLOCKING (critical architecture issues detected)');
+    } else if (analysis.enforcement.exitCode === 1) {
+        console.log('⚠️ ENFORCEMENT: WARNING (non-critical issues found)');
+    } else if (args.includes('--enforce-critical')) {
+        console.log('✅ ENFORCEMENT: PASSED (no critical architecture issues)');
+    }
+    
+    console.log('');
+    
+    if (analysis.findings.length === 0) {
+        console.log('✅ No architecture issues found!\n');
+    } else {
+        console.log('🔍 DETAILED FINDINGS:\n');
+        
+        // Group by severity
+        const grouped = {
+            critical: analysis.findings.filter(f => f.severity === 'critical'),
+            high: analysis.findings.filter(f => f.severity === 'high'),
+            medium: analysis.findings.filter(f => f.severity === 'medium'),
+            low: analysis.findings.filter(f => f.severity === 'low')
+        };
+        
+        ['critical', 'high', 'medium', 'low'].forEach(sev => {
+            if (grouped[sev].length > 0) {
+                const icon = sev === 'critical' ? '🚨' : sev === 'high' ? '⚠️' : sev === 'medium' ? '💡' : 'ℹ️';
+                console.log(`${icon} ${sev.toUpperCase()} (${grouped[sev].length} issues):`);
+                
+                grouped[sev].forEach((finding, index) => {
+                    console.log(`\n${index + 1}. ${finding.finding}`);
+                    console.log(`   File: ${finding.file}:${finding.line}`);
+                    console.log(`   Recommendation: ${finding.recommendation}`);
+                });
+                // Handle enforcement exit codes
+        if (analysis.enforcement.shouldBlock) {
+            console.log('\n🚫 ARCHITECTURE ENFORCEMENT BLOCKING');
+            console.log('   Critical architecture issues must be fixed before proceeding');
+            console.log('   Or add justified suppressions to docs/agent-stack/review-suppressions.json');
+            process.exit(2);
+        } else if (analysis.enforcement.exitCode === 1) {
+            console.log('\n⚠️ Non-critical architecture issues found (warn-only)');
+            process.exit(1);
+        }
+        
+        console.log('');
+            }
+        });
+    }
+    
+    return analysis;
+}
+
+// Main execution
+function main() {
+    const args = process.argv.slice(2);
+    
+    if (args.includes('--json')) {
+        const analysis = analyzeArchitecture(args);
+        console.log(JSON.stringify(analysis, null, 2));
+        
+        // Still respect enforcement even in JSON mode
+        if (analysis.enforcement.shouldBlock) {
+            process.exit(2);
+        } else if (analysis.enforcement.exitCode === 1) {
+            process.exit(1);
+        }
+    } else {
+        generateReport(args);
+    }
+}
+
+// Only run if this file is executed directly
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    analyzeArchitecture,
+    generateReport
+};

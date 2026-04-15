@@ -1,0 +1,182 @@
+name: Security Enforcement
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  # Security scanning with enforcement
+  security-enforcement:
+    name: Security Hard Block (Critical Only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Create security baseline if needed
+        run: |
+          echo "📋 Checking for security baseline..."
+          if [ ! -f "docs/agent-stack/security-baseline.json" ]; then
+            echo "Creating security baseline for legacy code..."
+            mkdir -p docs/agent-stack
+            node scripts/agent/security-scan.js --baseline > docs/agent-stack/security-baseline.json || true
+            echo "✅ Security baseline created"
+          else
+            echo "✅ Security baseline exists"
+          fi
+        
+      - name: Run security scan (enforcement mode)
+        run: |
+          echo "🔒 Running security scan in enforcement mode..."
+          echo "  - BLOCKING: Critical vulnerabilities and confirmed secrets"
+          echo "  - WARNING: High/medium/low priority issues"
+          
+          # Run security scan with enforcement flag
+          node scripts/agent/security-scan.js --enforce-critical --baseline docs/agent-stack/security-baseline.json
+          
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 2 ]; then
+            echo ""
+            echo "🚫 SECURITY GATE FAILED"
+            echo "   Critical security issues or confirmed secrets detected"
+            echo "   Review findings above and fix before merging"
+            echo ""
+            echo "📝 To suppress false positives:"
+            echo "   Add entries to docs/agent-stack/security-suppressions.md"
+            echo "   Include justification and approval"
+            echo ""
+            exit 1
+          elif [ $EXIT_CODE -eq 1 ]; then
+            echo ""
+            echo "⚠️  SECURITY WARNINGS FOUND"
+            echo "   High/medium/low priority issues detected"
+            echo "   Address these during regular development cycle"
+            echo "   Build will continue (warn-only for non-critical)"
+            echo ""
+            exit 0
+          else
+            echo ""
+            echo "✅ SECURITY SCAN PASSED"
+            echo "   No critical security issues detected"
+            echo ""
+            exit 0
+          fi
+        
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-enforcement-report
+          path: |
+            security-report-*.json
+            docs/agent-stack/security-baseline.json
+          retention-days: 30
+
+  # Dependency security audit
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run npm audit (enforcement mode)
+        run: |
+          echo "📦 Running dependency security audit..."
+          echo "  - BLOCKING: Critical and high severity vulnerabilities"
+          echo "  - WARNING: Moderate and low severity vulnerabilities"
+          
+          # Run npm audit and capture output
+          AUDIT_OUTPUT=$(npm audit --audit-level=high --json 2>/dev/null || echo '{"vulnerabilities":{}}')
+          
+          # Check for critical/high vulnerabilities
+          CRITICAL=$(echo "$AUDIT_OUTPUT" | node -e "
+            const data = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
+            const vulns = data.metadata?.vulnerabilities || {};
+            console.log(vulns.critical || 0);
+          " 2>/dev/null || echo "0")
+          
+          HIGH=$(echo "$AUDIT_OUTPUT" | node -e "
+            const data = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
+            const vulns = data.metadata?.vulnerabilities || {};
+            console.log(vulns.high || 0);
+          " 2>/dev/null || echo "0")
+          
+          echo "🔍 Dependency audit results:"
+          echo "   Critical: $CRITICAL vulnerabilities"
+          echo "   High: $HIGH vulnerabilities"
+          
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo ""
+            echo "🚫 DEPENDENCY SECURITY GATE FAILED"
+            echo "   Critical or high severity vulnerabilities detected"
+            echo "   Run 'npm audit fix' to resolve issues"
+            echo ""
+            npm audit --audit-level=high
+            exit 1
+          else
+            echo ""
+            echo "✅ DEPENDENCY AUDIT PASSED"
+            echo "   No critical or high severity vulnerabilities"
+            echo ""
+            # Still check for lower severity as warnings
+            npm audit || echo "⚠️ Lower severity vulnerabilities found (non-blocking)"
+            exit 0
+          fi
+
+  # Security gate summary
+  security-gate-summary:
+    name: Security Gate Summary
+    runs-on: ubuntu-latest
+    needs: [security-enforcement, dependency-audit]
+    if: always()
+    steps:
+      - name: Generate security summary
+        run: |
+          echo "🔒 Security Enforcement Summary"
+          echo "================================"
+          echo ""
+          echo "🛡️  Security Scan: ${{ needs.security-enforcement.result }}"
+          echo "📦 Dependency Audit: ${{ needs.dependency-audit.result }}"
+          echo ""
+          
+          if [ "${{ needs.security-enforcement.result }}" = "success" ] && [ "${{ needs.dependency-audit.result }}" = "success" ]; then
+            echo "✅ ALL SECURITY GATES PASSED"
+            echo "   No critical security issues detected"
+            echo "   Ready to proceed with merge"
+          else
+            echo "❌ SECURITY GATE FAILED"
+            echo "   Critical security issues must be resolved"
+            echo "   Check job details for specific findings"
+            echo ""
+            echo "🔧 Resolution steps:"
+            echo "   1. Review security scan findings above"
+            echo "   2. Fix critical vulnerabilities and secrets"
+            echo "   3. Run 'npm run agent:security' locally to verify"
+            echo "   4. Commit fixes and push to retry"
+          fi
+          echo ""
+          echo "ℹ️  Security enforcement scope: CRITICAL ONLY"
+          echo "   High/medium/low findings are warnings only"
+          echo "   This is Step 1 of gradual enforcement rollout"

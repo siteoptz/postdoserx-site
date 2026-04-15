@@ -1,6 +1,8 @@
 // Stripe Webhook Handler for PostDoseRX
 // Handles trial conversions, subscription events, and payment processing
 
+import { validateHttpMethod, validateStripeWebhookInputs } from '../lib/api-request-validation.js';
+
 const stripe = require('stripe')(
   process.env.STRIPE_SECRET_KEY || 
   process.env.API_SECRET_KEY || 
@@ -45,11 +47,18 @@ export default async function handler(req, res) {
     res.setHeader(key, value);
   });
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  const methodValidation = validateHttpMethod(req, ['POST']);
+  if (!methodValidation.ok) {
+    return res.status(methodValidation.status).json({ error: methodValidation.error });
   }
 
   const sig = req.headers['stripe-signature'];
+  const signatureRequired = Boolean(webhookSecret);
+  const inputValidation = validateStripeWebhookInputs(sig, signatureRequired);
+  if (!inputValidation.ok) {
+    return res.status(inputValidation.status).json({ error: inputValidation.error });
+  }
+
   let event;
   let rawBody;
 

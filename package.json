@@ -6,13 +6,41 @@
   "scripts": {
     "dev": "vercel dev",
     "build": "echo 'No build step required'",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "agent:memory:check": "node scripts/agent/memory-check.js",
+    "agent:plan": "node scripts/agent/plan.js",
+    "agent:plan:list": "node scripts/agent/plan.js list",
+    "agent:plan:validate": "node scripts/agent/plan.js validate",
+    "agent:self-review": "node scripts/agent/self-review.js",
+    "agent:self-review:list": "node scripts/agent/self-review.js list",
+    "agent:review": "node scripts/agent/aggregate-report",
+    "agent:review:ci": "node scripts/agent/aggregate-report --json",
+    "agent:review:enforce": "node scripts/agent/aggregate-report --enforce --enforce-lanes",
+    "agent:review:architecture:enforce": "node scripts/agent/review-architecture --enforce-critical",
+    "agent:review:regression:enforce": "node scripts/agent/review-regression-history --enforce-critical",
+    "agent:review:correctness": "node scripts/agent/review-correctness",
+    "agent:review:architecture": "node scripts/agent/review-architecture",
+    "agent:review:style": "node scripts/agent/review-style-rules",
+    "agent:review:performance": "node scripts/agent/review-performance-reliability",
+    "agent:review:regression": "node scripts/agent/review-regression-history",
+    "agent:security": "node scripts/agent/security-scan.js",
+    "agent:security:ci": "node scripts/agent/security-scan.js --summary",
+    "agent:ui-review": "node scripts/agent/ui-review.js",
+    "agent:orchestrate": "node scripts/agent/orchestrate.js",
+    "agent:suppressions:parse": "node scripts/agent/parse-suppressions-md.js --strict=false",
+    "agent:suppressions:parse:strict": "node scripts/agent/parse-suppressions-md.js",
+    "agent:suppressions:validate": "npm run agent:suppressions:parse:strict && node scripts/agent/validate-suppressions.js",
+    "agent:suppressions:validate:security": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/security-suppressions.json",
+    "agent:suppressions:validate:review": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/review-suppressions.json",
+    "agent:suppressions:validate:ui": "node scripts/agent/validate-suppressions.js validate docs/agent-stack/ui-suppressions.json"
   },
   "dependencies": {
     "stripe": "^14.0.0",
     "jose": "^5.2.0",
     "@supabase/supabase-js": "^2.39.0",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1"
   },
   "engines": {
     "node": ">=18.0.0"

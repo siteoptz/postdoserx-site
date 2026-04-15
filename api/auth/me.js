@@ -1,5 +1,6 @@
 import { getUserById } from '../../lib/database.js';
 import { authenticateRequest } from '../../lib/jwt.js';
+import { validateAuthMeRequest } from '../../lib/api-request-validation.js';
 
 // CORS headers
 const corsHeaders = {
@@ -20,10 +21,11 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  if (req.method !== 'GET') {
-    return res.status(405).json({ 
-      success: false, 
-      error: 'Method not allowed' 
+  const inputValidation = validateAuthMeRequest(req);
+  if (!inputValidation.ok) {
+    return res.status(inputValidation.status).json({
+      success: false,
+      error: inputValidation.error
     });
   }
 

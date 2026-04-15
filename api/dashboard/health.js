@@ -2,6 +2,8 @@
  * Simple health check endpoint for dashboard authentication testing
  * This helps verify that the dashboard can communicate with this API
  */
+import { validateHttpMethod } from '../../lib/api-request-validation.js';
+
 export default async function handler(req, res) {
   // Set CORS headers for dashboard subdomain
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,7 +14,16 @@ export default async function handler(req, res) {
     res.status(200).end();
     return;
   }
-  
+
+  const methodValidation = validateHttpMethod(req, ['GET']);
+  if (!methodValidation.ok) {
+    res.status(methodValidation.status).json({
+      success: false,
+      error: methodValidation.error
+    });
+    return;
+  }
+
   const timestamp = new Date().toISOString();
   
   res.status(200).json({
