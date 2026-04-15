@@ -1,0 +1,692 @@
+#!/usr/bin/env node
+
+/**
+ * Regression & History Review Lane
+ * 
+ * Reviews code for breaking changes and compatibility issues
+ * Part of the 5-lane parallel code review system
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+// Load suppressions from review-suppressions.md
+function loadSuppressions() {
+    const suppressionFile = path.join(process.cwd(), 'docs/agent-stack/review-suppressions.md');
+    
+    if (!fs.existsSync(suppressionFile)) {
+        return [];
+    }
+    
+    try {
+        const content = fs.readFileSync(suppressionFile, 'utf8');
+        const suppressions = [];
+        
+        // Parse markdown suppressions
+        const sections = content.split('###').slice(1); // Skip header
+        
+        sections.forEach(section => {
+            const lines = section.trim().split('\n');
+            if (lines.length < 5) return;
+            
+            const title = lines[0].trim();
+            const findingMatch = lines.find(l => l.startsWith('**Finding:**'));
+            const fileMatch = lines.find(l => l.startsWith('**File:**'));
+            const laneMatch = lines.find(l => l.startsWith('**Lane:**'));
+            const severityMatch = lines.find(l => l.startsWith('**Severity:**'));
+            
+            if (findingMatch && fileMatch && laneMatch?.includes('regression')) {
+                suppressions.push({
+                    finding: findingMatch.replace('**Finding:**', '').trim(),
+                    file: fileMatch.replace('**File:**', '').trim(),
+                    severity: severityMatch ? severityMatch.replace('**Severity:**', '').trim() : 'medium',
+                    title: title
+                });
+            }
+        });
+        
+        return suppressions;
+    } catch (error) {
+        console.warn(`Warning: Could not load suppressions: ${error.message}`);
+        return [];
+    }
+}
+
+// Apply suppressions to findings
+function applySuppressions(findings, suppressions) {
+    if (suppressions.length === 0) return findings;
+    
+    return findings.filter(finding => {
+        const suppressed = suppressions.find(supp => 
+            finding.finding.includes(supp.finding) ||
+            finding.file.includes(supp.file) ||
+            (supp.file.includes('*') && finding.file.match(supp.file.replace(/\*/g, '.*')))
+        );
+        
+        if (suppressed) {
+            console.log(`   Suppressed: ${finding.finding} (${suppressed.title})`);
+            return false;
+        }
+        return true;
+    });
+}
+
+// Check enforcement rules for regression lane
+function checkEnforcementRules(findings, args) {
+    const isEnforcementMode = args.includes('--enforce-critical');
+    
+    if (!isEnforcementMode) {
+        return { shouldBlock: false, exitCode: 0 };
+    }
+    
+    // In STEP 3: Only critical regression issues are blocking
+    const criticalIssues = findings.filter(f => f.severity === 'critical').length;
+    
+    if (criticalIssues > 0) {
+        return { shouldBlock: true, exitCode: 2, criticalCount: criticalIssues };
+    }
+    
+    // High/medium/low are warnings only
+    const warningIssues = findings.filter(f => f.severity !== 'critical').length;
+    if (warningIssues > 0) {
+        return { shouldBlock: false, exitCode: 1, warningCount: warningIssues };
+    }
+    
+    return { shouldBlock: false, exitCode: 0 };
+}
+
+// Analyze regression and compatibility
+function analyzeRegressionHistory(args = []) {
+    const findings = [];
+    const severity = { critical: 0, high: 0, medium: 0, low: 0 };
+    
+    // Load suppressions
+    const suppressions = loadSuppressions();
+    if (suppressions.length > 0) {
+        console.log(`📋 Loaded ${suppressions.length} regression suppressions`);
+    }
+    
+    console.log('🔄 Running Regression & History Review...\n');
+    
+    // 1. Git history analysis
+    try {
+        const gitAnalysis = analyzeGitHistory();
+        findings.push(...gitAnalysis.findings);
+        
+        gitAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze git history: ${error.message}`);
+    }
+    
+    // 2. API compatibility analysis
+    try {
+        const apiAnalysis = analyzeApiCompatibility();
+        findings.push(...apiAnalysis.findings);
+        
+        apiAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze API compatibility: ${error.message}`);
+    }
+    
+    // 3. Dependency compatibility analysis
+    try {
+        const depAnalysis = analyzeDependencyCompatibility();
+        findings.push(...depAnalysis.findings);
+        
+        depAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze dependency compatibility: ${error.message}`);
+    }
+    
+    // 4. Breaking change detection
+    try {
+        const breakingAnalysis = analyzeBreakingChanges();
+        findings.push(...breakingAnalysis.findings);
+        
+        breakingAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze breaking changes: ${error.message}`);
+    }
+    
+    // Apply suppressions
+    const originalFindings = [...findings];
+    const filteredFindings = applySuppressions(findings, suppressions);
+    
+    // Recalculate severity counts after suppressions
+    const filteredSeverity = { critical: 0, high: 0, medium: 0, low: 0 };
+    filteredFindings.forEach(finding => {
+        filteredSeverity[finding.severity]++;
+    });
+    
+    // Check enforcement rules
+    const enforcement = checkEnforcementRules(filteredFindings, args);
+    
+    return {
+        reviewType: 'regression-history',
+        findings: filteredFindings,
+        originalFindings,
+        severity: filteredSeverity,
+        suppressionCount: originalFindings.length - filteredFindings.length,
+        enforcement,
+        summary: {
+            totalIssues: filteredFindings.length,
+            criticalIssues: filteredSeverity.critical,
+            highIssues: filteredSeverity.high,
+            mediumIssues: filteredSeverity.medium,
+            lowIssues: filteredSeverity.low
+        }
+    };
+}
+
+// Analyze git history for regression patterns
+function analyzeGitHistory() {
+    const findings = [];
+    
+    try {
+        // Get recent commit history
+        const commits = execSync('git log --oneline -20', 
+            { encoding: 'utf8' }).split('\n').filter(line => line.trim());
+        
+        // Analyze commit patterns
+        const revertCommits = commits.filter(commit => 
+            commit.toLowerCase().includes('revert') || 
+            commit.toLowerCase().includes('rollback')
+        ).length;
+        
+        if (revertCommits > 2) {
+            findings.push({
+                severity: 'medium',
+                file: 'git-history',
+                line: 'Recent commits',
+                finding: `${revertCommits} revert/rollback commits in recent history`,
+                recommendation: 'High revert rate may indicate stability issues - consider better testing'
+            });
+        }
+        
+        // Check for fix commits
+        const fixCommits = commits.filter(commit => 
+            commit.toLowerCase().includes('fix') || 
+            commit.toLowerCase().includes('hotfix') ||
+            commit.toLowerCase().includes('patch')
+        ).length;
+        
+        if (fixCommits > 5) {
+            findings.push({
+                severity: 'low',
+                file: 'git-history',
+                line: 'Recent commits',
+                finding: `${fixCommits} fix commits in recent history`,
+                recommendation: 'High fix rate may indicate need for better initial testing'
+            });
+        }
+        
+        // Check for breaking change indicators
+        const breakingCommits = commits.filter(commit => 
+            commit.toLowerCase().includes('breaking') || 
+            commit.toLowerCase().includes('major') ||
+            commit.includes('!')
+        ).length;
+        
+        if (breakingCommits > 0) {
+            findings.push({
+                severity: 'high',
+                file: 'git-history',
+                line: 'Recent commits',
+                finding: `${breakingCommits} potential breaking changes in recent commits`,
+                recommendation: 'Ensure breaking changes are properly documented and versioned'
+            });
+        }
+        
+        // Analyze file change patterns
+        const changedFiles = execSync('git diff --name-only HEAD~10..HEAD', 
+            { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+        
+        const apiChanges = changedFiles.filter(file => file.includes('api/')).length;
+        const configChanges = changedFiles.filter(file => 
+            file.includes('package.json') || 
+            file.includes('vercel.json') ||
+            file.includes('.env')
+        ).length;
+        
+        if (apiChanges > 5) {
+            findings.push({
+                severity: 'medium',
+                file: 'git-history',
+                line: 'API changes',
+                finding: `${apiChanges} API files changed in recent commits`,
+                recommendation: 'High API change rate - ensure backward compatibility is maintained'
+            });
+        }
+        
+        if (configChanges > 3) {
+            findings.push({
+                severity: 'medium',
+                file: 'git-history',
+                line: 'Config changes',
+                finding: `${configChanges} configuration files changed recently`,
+                recommendation: 'Review configuration changes for deployment compatibility'
+            });
+        }
+        
+    } catch (error) {
+        if (!error.message.includes('not a git repository')) {
+            findings.push({
+                severity: 'low',
+                file: 'git-analysis',
+                line: 'N/A',
+                finding: `Git history analysis failed: ${error.message}`,
+                recommendation: 'Ensure git repository is properly initialized and accessible'
+            });
+        }
+    }
+    
+    return { findings };
+}
+
+// Analyze API compatibility
+function analyzeApiCompatibility() {
+    const findings = [];
+    
+    const apiFiles = execSync('find ./api -name "*.js" 2>/dev/null || echo ""', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of apiFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        
+        // Check for version handling
+        const hasVersioning = content.includes('/v1/') || 
+                             content.includes('/v2/') || 
+                             content.includes('version') ||
+                             content.includes('api-version');
+        
+        if (!hasVersioning) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'API structure',
+                finding: 'API endpoint without versioning strategy',
+                recommendation: 'Implement API versioning to handle breaking changes gracefully'
+            });
+        }
+        
+        // Check for parameter validation changes
+        const paramValidation = content.includes('required') || 
+                               content.includes('validate') ||
+                               content.includes('schema');
+        
+        if (!paramValidation) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Parameter handling',
+                finding: 'API endpoint without parameter validation',
+                recommendation: 'Add parameter validation to prevent breaking changes from invalid inputs'
+            });
+        }
+        
+        // Check for response format consistency
+        const hasResponseFormat = content.includes('json') || 
+                                 content.includes('status') ||
+                                 content.includes('response');
+        
+        if (hasResponseFormat) {
+            // Check for consistent error responses
+            const hasErrorFormat = content.includes('error') && 
+                                  (content.includes('message') || content.includes('code'));
+            
+            if (!hasErrorFormat) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: 'Error handling',
+                    finding: 'Inconsistent error response format',
+                    recommendation: 'Standardize error response format for client compatibility'
+                });
+            }
+        }
+        
+        // Check for deprecated functionality
+        const hasDeprecated = content.includes('deprecated') || 
+                             content.includes('legacy') ||
+                             content.includes('TODO: remove');
+        
+        if (hasDeprecated) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Deprecated code',
+                finding: 'API contains deprecated functionality',
+                recommendation: 'Plan migration path and sunset timeline for deprecated features'
+            });
+        }
+        
+        // Check for hardcoded URLs or endpoints
+        const hardcodedUrls = content.match(/https?:\/\/[^\s"']+/g) || [];
+        const externalUrls = hardcodedUrls.filter(url => 
+            !url.includes('localhost') && 
+            !url.includes('127.0.0.1') &&
+            !url.includes('example.com')
+        );
+        
+        if (externalUrls.length > 0) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'External dependencies',
+                finding: `${externalUrls.length} hardcoded external URLs`,
+                recommendation: 'Move external URLs to configuration to handle service changes'
+            });
+        }
+    }
+    
+    return { findings };
+}
+
+// Analyze dependency compatibility
+function analyzeDependencyCompatibility() {
+    const findings = [];
+    
+    if (fs.existsSync('./package.json')) {
+        const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+        const deps = packageJson.dependencies || {};
+        const devDeps = packageJson.devDependencies || {};
+        
+        // Check for outdated major versions
+        Object.entries(deps).forEach(([name, version]) => {
+            if (version.startsWith('^') || version.startsWith('~')) {
+                // This is good - allows patch/minor updates
+            } else if (version.match(/^\d+\./)) {
+                findings.push({
+                    severity: 'low',
+                    file: 'package.json',
+                    line: `dependencies.${name}`,
+                    finding: `Dependency ${name} pinned to exact version ${version}`,
+                    recommendation: 'Consider using semantic versioning ranges (^) for automatic patch updates'
+                });
+            }
+        });
+        
+        // Check for Node.js version compatibility
+        const nodeVersion = packageJson.engines?.node;
+        if (!nodeVersion) {
+            findings.push({
+                severity: 'medium',
+                file: 'package.json',
+                line: 'engines',
+                finding: 'No Node.js version specified in engines',
+                recommendation: 'Specify Node.js version requirements for deployment compatibility'
+            });
+        }
+        
+        // Check for potential breaking dependency updates
+        const majorVersionPattern = /\^\d+\.\d+\.\d+/;
+        const potentialBreaking = Object.entries(deps).filter(([name, version]) => {
+            return version.startsWith('^0.') || name.includes('beta') || name.includes('alpha');
+        });
+        
+        if (potentialBreaking.length > 0) {
+            findings.push({
+                severity: 'medium',
+                file: 'package.json',
+                line: 'dependencies',
+                finding: `${potentialBreaking.length} dependencies with potential breaking changes`,
+                recommendation: 'Pin pre-1.0 and pre-release dependencies to specific versions'
+            });
+        }
+        
+        // Check for security vulnerabilities (if package-lock exists)
+        if (fs.existsSync('./package-lock.json')) {
+            try {
+                const auditOutput = execSync('npm audit --json', 
+                    { encoding: 'utf8', stdio: 'pipe' });
+                const auditData = JSON.parse(auditOutput);
+                
+                if (auditData.metadata?.vulnerabilities?.total > 0) {
+                    const vulns = auditData.metadata.vulnerabilities;
+                    findings.push({
+                        severity: vulns.critical > 0 ? 'critical' : vulns.high > 0 ? 'high' : 'medium',
+                        file: 'package-lock.json',
+                        line: 'Dependencies',
+                        finding: `${vulns.total} security vulnerabilities found`,
+                        recommendation: 'Run npm audit fix to address security vulnerabilities'
+                    });
+                }
+            } catch (error) {
+                // npm audit failed - might be no vulnerabilities or npm issue
+                if (!error.stdout?.includes('"vulnerabilities":')) {
+                    findings.push({
+                        severity: 'low',
+                        file: 'npm-audit',
+                        line: 'N/A',
+                        finding: 'Could not run security audit',
+                        recommendation: 'Ensure npm audit can run to check for vulnerabilities'
+                    });
+                }
+            }
+        }
+    }
+    
+    return { findings };
+}
+
+// Analyze breaking changes
+function analyzeBreakingChanges() {
+    const findings = [];
+    
+    // Analyze environment variable changes
+    if (fs.existsSync('./.env.example')) {
+        try {
+            const envExample = fs.readFileSync('./.env.example', 'utf8');
+            const envVars = envExample.split('\n')
+                .filter(line => line.trim() && !line.startsWith('#'))
+                .map(line => line.split('=')[0]);
+            
+            // Check if any JS files reference env vars not in example
+            const jsFiles = execSync('find . -name "*.js" -not -path "./node_modules/*"', 
+                { encoding: 'utf8' }).split('\n').filter(f => f.trim()).slice(0, 10);
+            
+            const usedEnvVars = new Set();
+            
+            for (const file of jsFiles) {
+                if (!fs.existsSync(file)) continue;
+                
+                const content = fs.readFileSync(file, 'utf8');
+                const envReferences = content.match(/process\.env\.([A-Z_]+)/g) || [];
+                
+                envReferences.forEach(ref => {
+                    const varName = ref.replace('process.env.', '');
+                    usedEnvVars.add(varName);
+                });
+            }
+            
+            const missingFromExample = Array.from(usedEnvVars).filter(varName => 
+                !envVars.includes(varName) && 
+                varName !== 'NODE_ENV' && 
+                varName !== 'PORT'
+            );
+            
+            if (missingFromExample.length > 0) {
+                findings.push({
+                    severity: 'medium',
+                    file: '.env.example',
+                    line: 'Environment variables',
+                    finding: `${missingFromExample.length} env vars used but not documented: ${missingFromExample.join(', ')}`,
+                    recommendation: 'Add missing environment variables to .env.example for deployment compatibility'
+                });
+            }
+            
+        } catch (error) {
+            console.warn(`Warning: Could not analyze environment variables: ${error.message}`);
+        }
+    }
+    
+    // Check for database schema changes
+    const dbFiles = execSync('find . -name "*.sql" -o -name "*migration*" -o -name "*schema*" 2>/dev/null || echo ""', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    if (dbFiles.length > 0) {
+        findings.push({
+            severity: 'medium',
+            file: 'database-changes',
+            line: 'Schema files',
+            finding: 'Database schema or migration files detected',
+            recommendation: 'Ensure database changes are backward compatible and properly versioned'
+        });
+    }
+    
+    // Check for API contract changes
+    const apiFiles = execSync('find ./api -name "*.js" 2>/dev/null || echo ""', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of apiFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        
+        // Check for required parameter additions
+        const requiredParams = content.match(/required.*\[.*\]/gi) || [];
+        if (requiredParams.length > 0) {
+            findings.push({
+                severity: 'high',
+                file: file,
+                line: 'Parameter validation',
+                finding: 'API endpoint has required parameters',
+                recommendation: 'Ensure new required parameters maintain backward compatibility'
+            });
+        }
+        
+        // Check for response structure changes
+        const responseStructure = content.includes('res.json') || content.includes('response');
+        if (responseStructure) {
+            // This is expected, but flag if there are major structural changes
+            const complexStructure = content.includes('map') || 
+                                   content.includes('filter') || 
+                                   content.includes('reduce');
+            
+            if (complexStructure) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: 'Response processing',
+                    finding: 'Complex response processing detected',
+                    recommendation: 'Ensure response format changes maintain client compatibility'
+                });
+            }
+        }
+    }
+    
+    return { findings };
+}
+
+// Generate regression & history review report
+function generateReport(args = []) {
+    const analysis = analyzeRegressionHistory(args);
+    
+    console.log('📊 REGRESSION & HISTORY REVIEW RESULTS');
+    console.log('=' .repeat(50));
+    console.log(`Total Issues: ${analysis.summary.totalIssues}`);
+    console.log(`Critical: ${analysis.summary.criticalIssues}`);
+    console.log(`High: ${analysis.summary.highIssues}`);
+    console.log(`Medium: ${analysis.summary.mediumIssues}`);
+    console.log(`Low: ${analysis.summary.lowIssues}`);
+    
+    if (analysis.suppressionCount > 0) {
+        console.log(`Suppressed: ${analysis.suppressionCount}`);
+    }
+    
+    // Show enforcement status
+    if (analysis.enforcement.shouldBlock) {
+        console.log('🚫 ENFORCEMENT: BLOCKING (critical regression issues detected)');
+    } else if (analysis.enforcement.exitCode === 1) {
+        console.log('⚠️ ENFORCEMENT: WARNING (non-critical issues found)');
+    } else if (args.includes('--enforce-critical')) {
+        console.log('✅ ENFORCEMENT: PASSED (no critical regression issues)');
+    }
+    
+    console.log('');
+    
+    if (analysis.findings.length === 0) {
+        console.log('✅ No regression or compatibility issues found!\n');
+    } else {
+        console.log('🔍 DETAILED FINDINGS:\n');
+        
+        // Group by severity
+        const grouped = {
+            critical: analysis.findings.filter(f => f.severity === 'critical'),
+            high: analysis.findings.filter(f => f.severity === 'high'),
+            medium: analysis.findings.filter(f => f.severity === 'medium'),
+            low: analysis.findings.filter(f => f.severity === 'low')
+        };
+        
+        ['critical', 'high', 'medium', 'low'].forEach(sev => {
+            if (grouped[sev].length > 0) {
+                const icon = sev === 'critical' ? '🚨' : sev === 'high' ? '⚠️' : sev === 'medium' ? '💡' : 'ℹ️';
+                console.log(`${icon} ${sev.toUpperCase()} (${grouped[sev].length} issues):`);
+                
+                grouped[sev].forEach((finding, index) => {
+                    console.log(`\n${index + 1}. ${finding.finding}`);
+                    console.log(`   File: ${finding.file}:${finding.line}`);
+                    console.log(`   Recommendation: ${finding.recommendation}`);
+                });
+                // Handle enforcement exit codes
+        if (analysis.enforcement.shouldBlock) {
+            console.log('\n🚫 REGRESSION ENFORCEMENT BLOCKING');
+            console.log('   Critical regression/compatibility issues must be fixed before proceeding');
+            console.log('   Or add justified suppressions to docs/agent-stack/review-suppressions.md');
+            process.exit(2);
+        } else if (analysis.enforcement.exitCode === 1) {
+            console.log('\n⚠️ Non-critical regression issues found (warn-only)');
+            process.exit(1);
+        }
+        
+        console.log('');
+            }
+        });
+    }
+    
+    return analysis;
+}
+
+// Main execution
+function main() {
+    const args = process.argv.slice(2);
+    
+    if (args.includes('--json')) {
+        const analysis = analyzeRegressionHistory(args);
+        console.log(JSON.stringify(analysis, null, 2));
+        
+        // Still respect enforcement even in JSON mode
+        if (analysis.enforcement.shouldBlock) {
+            process.exit(2);
+        } else if (analysis.enforcement.exitCode === 1) {
+            process.exit(1);
+        }
+    } else {
+        generateReport(args);
+    }
+}
+
+// Only run if this file is executed directly
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    analyzeRegressionHistory,
+    generateReport
+};

@@ -1,0 +1,608 @@
+#!/usr/bin/env node
+
+/**
+ * Performance & Reliability Review Lane
+ * 
+ * Reviews code for optimization, scalability, and resilience
+ * Part of the 5-lane parallel code review system
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+// Analyze performance and reliability
+function analyzePerformanceReliability() {
+    const findings = [];
+    const severity = { critical: 0, high: 0, medium: 0, low: 0 };
+    
+    console.log('⚡ Running Performance & Reliability Review...\n');
+    
+    // 1. Frontend performance analysis
+    try {
+        const frontendAnalysis = analyzeFrontendPerformance();
+        findings.push(...frontendAnalysis.findings);
+        
+        frontendAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze frontend performance: ${error.message}`);
+    }
+    
+    // 2. Backend performance analysis
+    try {
+        const backendAnalysis = analyzeBackendPerformance();
+        findings.push(...backendAnalysis.findings);
+        
+        backendAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze backend performance: ${error.message}`);
+    }
+    
+    // 3. Resource optimization analysis
+    try {
+        const resourceAnalysis = analyzeResourceOptimization();
+        findings.push(...resourceAnalysis.findings);
+        
+        resourceAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze resource optimization: ${error.message}`);
+    }
+    
+    // 4. Reliability patterns analysis
+    try {
+        const reliabilityAnalysis = analyzeReliabilityPatterns();
+        findings.push(...reliabilityAnalysis.findings);
+        
+        reliabilityAnalysis.findings.forEach(finding => {
+            severity[finding.severity]++;
+        });
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze reliability patterns: ${error.message}`);
+    }
+    
+    return {
+        reviewType: 'performance-reliability',
+        findings,
+        severity,
+        summary: {
+            totalIssues: findings.length,
+            criticalIssues: severity.critical,
+            highIssues: severity.high,
+            mediumIssues: severity.medium,
+            lowIssues: severity.low
+        }
+    };
+}
+
+// Analyze frontend performance
+function analyzeFrontendPerformance() {
+    const findings = [];
+    
+    // Analyze HTML files for performance issues
+    const htmlFiles = execSync('find . -name "*.html" -not -path "./node_modules/*"', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of htmlFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        
+        // Check for large inline scripts
+        const inlineScripts = content.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || [];
+        const largeInlineScripts = inlineScripts.filter(script => 
+            !script.includes('src=') && script.length > 1000
+        );
+        
+        if (largeInlineScripts.length > 0) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Script tags',
+                finding: `${largeInlineScripts.length} large inline scripts found`,
+                recommendation: 'Move large inline scripts to external files for better caching and performance'
+            });
+        }
+        
+        // Check for missing async/defer attributes
+        const externalScripts = content.match(/<script[^>]*src=[^>]*>/gi) || [];
+        const scriptsWithoutAsync = externalScripts.filter(script => 
+            !script.includes('async') && !script.includes('defer')
+        );
+        
+        if (scriptsWithoutAsync.length > 2) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Script tags',
+                finding: `${scriptsWithoutAsync.length} external scripts without async/defer`,
+                recommendation: 'Add async or defer attributes to external scripts to prevent render blocking'
+            });
+        }
+        
+        // Check for missing image optimization attributes
+        const images = content.match(/<img[^>]*>/gi) || [];
+        const imagesWithoutOptimization = images.filter(img => 
+            !img.includes('loading=') && !img.includes('width=') && !img.includes('height=')
+        );
+        
+        if (imagesWithoutOptimization.length > 3) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Image tags',
+                finding: `${imagesWithoutOptimization.length} images without optimization attributes`,
+                recommendation: 'Add loading="lazy", width, and height attributes to images for better performance'
+            });
+        }
+        
+        // Check for large CSS files
+        const cssLinks = content.match(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi) || [];
+        const externalCss = cssLinks.length;
+        
+        if (externalCss > 5) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'CSS links',
+                finding: `${externalCss} external CSS files`,
+                recommendation: 'Consider combining CSS files to reduce HTTP requests'
+            });
+        }
+        
+        // Check for preload/prefetch usage
+        const hasPreload = content.includes('rel="preload"');
+        const hasPrefetch = content.includes('rel="prefetch"');
+        const criticalResources = externalScripts.length + cssLinks.length;
+        
+        if (criticalResources > 3 && !hasPreload && !hasPrefetch) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Head section',
+                finding: 'Multiple critical resources without preload/prefetch hints',
+                recommendation: 'Add preload for critical resources and prefetch for next-page resources'
+            });
+        }
+    }
+    
+    // Analyze CSS files for performance
+    const cssFiles = execSync('find . -name "*.css" -not -path "./node_modules/*"', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of cssFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        const size = Buffer.byteLength(content, 'utf8');
+        
+        // Check for large CSS files
+        if (size > 50000) { // 50KB
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'File size',
+                finding: `Large CSS file (${Math.round(size / 1024)}KB)`,
+                recommendation: 'Consider splitting into smaller files or removing unused styles'
+            });
+        }
+        
+        // Check for expensive selectors
+        const universalSelectors = (content.match(/\*\s*{/g) || []).length;
+        const descendantSelectors = (content.match(/\w+\s+\w+\s+\w+/g) || []).length;
+        
+        if (universalSelectors > 3) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Universal selectors',
+                finding: `${universalSelectors} universal selectors (*) found`,
+                recommendation: 'Minimize use of universal selectors for better CSS performance'
+            });
+        }
+        
+        if (descendantSelectors > 20) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Complex selectors',
+                finding: `${descendantSelectors} potentially complex descendant selectors`,
+                recommendation: 'Consider using more specific selectors to improve CSS performance'
+            });
+        }
+    }
+    
+    return { findings };
+}
+
+// Analyze backend performance
+function analyzeBackendPerformance() {
+    const findings = [];
+    
+    // Analyze API endpoints
+    const apiFiles = execSync('find ./api -name "*.js" 2>/dev/null || echo ""', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of apiFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        const lines = content.split('\n');
+        
+        // Check for synchronous file operations
+        const syncOperations = [
+            'readFileSync',
+            'writeFileSync',
+            'existsSync',
+            'statSync',
+            'readdirSync'
+        ];
+        
+        syncOperations.forEach(op => {
+            if (content.includes(op)) {
+                findings.push({
+                    severity: 'medium',
+                    file: file,
+                    line: 'File operations',
+                    finding: `Synchronous file operation (${op}) in API endpoint`,
+                    recommendation: `Use async version (${op.replace('Sync', '')}) to prevent blocking`
+                });
+            }
+        });
+        
+        // Check for missing response caching headers
+        const hasCacheHeaders = content.includes('Cache-Control') || 
+                               content.includes('ETag') || 
+                               content.includes('Last-Modified');
+        
+        if (!hasCacheHeaders && content.includes('res.')) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Response handling',
+                finding: 'API endpoint without caching headers',
+                recommendation: 'Add appropriate Cache-Control headers for better performance'
+            });
+        }
+        
+        // Check for database queries without connection pooling indicators
+        const hasDbQueries = content.includes('query') || 
+                            content.includes('find') || 
+                            content.includes('select');
+        const hasPooling = content.includes('pool') || 
+                          content.includes('connection');
+        
+        if (hasDbQueries && !hasPooling) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Database access',
+                finding: 'Database queries without apparent connection pooling',
+                recommendation: 'Implement connection pooling for database operations'
+            });
+        }
+        
+        // Check for missing request size limits
+        const hasBodyParser = content.includes('body') || content.includes('req.body');
+        const hasLimits = content.includes('limit') || content.includes('size');
+        
+        if (hasBodyParser && !hasLimits) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Request handling',
+                finding: 'Request body parsing without size limits',
+                recommendation: 'Add request size limits to prevent memory exhaustion attacks'
+            });
+        }
+        
+        // Check for heavy computations in request handlers
+        lines.forEach((line, index) => {
+            const heavyOps = ['sort()', 'filter()', 'map()', 'reduce()'];
+            const chainedOps = heavyOps.filter(op => line.includes(op)).length;
+            
+            if (chainedOps > 2) {
+                findings.push({
+                    severity: 'medium',
+                    file: file,
+                    line: index + 1,
+                    finding: 'Multiple heavy array operations in request handler',
+                    recommendation: 'Consider moving heavy computations to background jobs or caching results'
+                });
+            }
+            
+            // Check for loops in request handlers
+            if (line.includes('for (') || line.includes('while (')) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: index + 1,
+                    finding: 'Loop found in request handler',
+                    recommendation: 'Ensure loops have appropriate bounds and consider async patterns'
+                });
+            }
+        });
+    }
+    
+    return { findings };
+}
+
+// Analyze resource optimization
+function analyzeResourceOptimization() {
+    const findings = [];
+    
+    // Check package.json for optimization opportunities
+    if (fs.existsSync('./package.json')) {
+        const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+        const deps = packageJson.dependencies || {};
+        
+        // Check for large dependencies
+        const heavyPackages = [
+            'moment', 'lodash', 'axios', 'react', 'vue', 'angular'
+        ];
+        
+        const foundHeavyPackages = Object.keys(deps).filter(dep => 
+            heavyPackages.some(heavy => dep.includes(heavy))
+        );
+        
+        if (foundHeavyPackages.length > 0) {
+            findings.push({
+                severity: 'low',
+                file: 'package.json',
+                line: 'dependencies',
+                finding: `Heavy dependencies detected: ${foundHeavyPackages.join(', ')}`,
+                recommendation: 'Consider lighter alternatives or tree-shaking to reduce bundle size'
+            });
+        }
+        
+        // Check for missing optimization scripts
+        const scripts = packageJson.scripts || {};
+        const hasMinification = Object.values(scripts).some(script => 
+            script.includes('minify') || script.includes('uglify') || script.includes('terser')
+        );
+        
+        if (!hasMinification && Object.keys(scripts).length > 2) {
+            findings.push({
+                severity: 'low',
+                file: 'package.json',
+                line: 'scripts',
+                finding: 'No minification scripts found',
+                recommendation: 'Add build scripts for asset minification and optimization'
+            });
+        }
+    }
+    
+    // Analyze static file sizes
+    try {
+        const staticFiles = execSync(
+            'find . -name "*.js" -o -name "*.css" -o -name "*.html" | grep -v node_modules | head -20',
+            { encoding: 'utf8' }
+        ).split('\n').filter(f => f.trim());
+        
+        for (const file of staticFiles) {
+            if (!fs.existsSync(file)) continue;
+            
+            const stats = fs.statSync(file);
+            const sizeKB = Math.round(stats.size / 1024);
+            
+            if (file.endsWith('.js') && sizeKB > 100) {
+                findings.push({
+                    severity: 'medium',
+                    file: file,
+                    line: 'File size',
+                    finding: `Large JavaScript file (${sizeKB}KB)`,
+                    recommendation: 'Consider code splitting or removing unused code'
+                });
+            }
+            
+            if (file.endsWith('.css') && sizeKB > 50) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: 'File size',
+                    finding: `Large CSS file (${sizeKB}KB)`,
+                    recommendation: 'Consider splitting CSS or removing unused styles'
+                });
+            }
+            
+            if (file.endsWith('.html') && sizeKB > 30) {
+                findings.push({
+                    severity: 'low',
+                    file: file,
+                    line: 'File size',
+                    finding: `Large HTML file (${sizeKB}KB)`,
+                    recommendation: 'Consider breaking into components or removing inline content'
+                });
+            }
+        }
+        
+    } catch (error) {
+        console.warn(`Warning: Could not analyze static file sizes: ${error.message}`);
+    }
+    
+    return { findings };
+}
+
+// Analyze reliability patterns
+function analyzeReliabilityPatterns() {
+    const findings = [];
+    
+    // Analyze JavaScript files for reliability patterns
+    const jsFiles = execSync('find . -name "*.js" -not -path "./node_modules/*" -not -path "./.git/*"', 
+        { encoding: 'utf8' }).split('\n').filter(f => f.trim());
+    
+    for (const file of jsFiles) {
+        if (!fs.existsSync(file)) continue;
+        
+        const content = fs.readFileSync(file, 'utf8');
+        const lines = content.split('\n');
+        
+        // Check for timeout implementations
+        const hasTimeouts = content.includes('setTimeout') || content.includes('setInterval');
+        const hasTimeout = content.includes('timeout') || content.includes('Timeout');
+        
+        if (hasTimeouts && !hasTimeout) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Timing operations',
+                finding: 'Uses setTimeout/setInterval without timeout handling',
+                recommendation: 'Add timeout limits and cleanup for timer operations'
+            });
+        }
+        
+        // Check for retry patterns
+        const hasRetry = content.includes('retry') || content.includes('attempt');
+        const hasNetworkCalls = content.includes('fetch') || 
+                               content.includes('axios') || 
+                               content.includes('request');
+        
+        if (hasNetworkCalls && !hasRetry) {
+            findings.push({
+                severity: 'medium',
+                file: file,
+                line: 'Network operations',
+                finding: 'Network calls without retry mechanism',
+                recommendation: 'Implement retry logic with exponential backoff for network operations'
+            });
+        }
+        
+        // Check for graceful degradation
+        const hasFeatureDetection = content.includes('typeof') && content.includes('undefined');
+        const hasBrowserApis = content.includes('localStorage') || 
+                              content.includes('sessionStorage') || 
+                              content.includes('navigator');
+        
+        if (hasBrowserApis && !hasFeatureDetection) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Browser APIs',
+                finding: 'Browser API usage without feature detection',
+                recommendation: 'Add feature detection for browser APIs for better compatibility'
+            });
+        }
+        
+        // Check for memory leak patterns
+        lines.forEach((line, index) => {
+            // Check for event listeners without removal
+            if (line.includes('addEventListener') && !content.includes('removeEventListener')) {
+                findings.push({
+                    severity: 'medium',
+                    file: file,
+                    line: index + 1,
+                    finding: 'Event listener added without cleanup',
+                    recommendation: 'Ensure event listeners are removed to prevent memory leaks'
+                });
+            }
+            
+            // Check for setInterval without clearInterval
+            if (line.includes('setInterval') && !content.includes('clearInterval')) {
+                findings.push({
+                    severity: 'medium',
+                    file: file,
+                    line: index + 1,
+                    finding: 'setInterval without clearInterval',
+                    recommendation: 'Store interval ID and clear it when no longer needed'
+                });
+            }
+        });
+        
+        // Check for error boundaries (React-like patterns)
+        if (content.includes('componentDidCatch') || content.includes('ErrorBoundary')) {
+            // This is good - no finding needed
+        } else if (content.includes('render') || content.includes('component')) {
+            findings.push({
+                severity: 'low',
+                file: file,
+                line: 'Component structure',
+                finding: 'Component code without error boundary patterns',
+                recommendation: 'Consider implementing error boundaries for graceful error handling'
+            });
+        }
+    }
+    
+    return { findings };
+}
+
+// Generate performance & reliability review report
+function generateReport() {
+    const analysis = analyzePerformanceReliability();
+    
+    console.log('📊 PERFORMANCE & RELIABILITY REVIEW RESULTS');
+    console.log('=' .repeat(50));
+    console.log(`Total Issues: ${analysis.summary.totalIssues}`);
+    console.log(`Critical: ${analysis.summary.criticalIssues}`);
+    console.log(`High: ${analysis.summary.highIssues}`);
+    console.log(`Medium: ${analysis.summary.mediumIssues}`);
+    console.log(`Low: ${analysis.summary.lowIssues}\n`);
+    
+    if (analysis.findings.length === 0) {
+        console.log('✅ No performance or reliability issues found!\n');
+    } else {
+        console.log('🔍 DETAILED FINDINGS:\n');
+        
+        // Group by severity
+        const grouped = {
+            critical: analysis.findings.filter(f => f.severity === 'critical'),
+            high: analysis.findings.filter(f => f.severity === 'high'),
+            medium: analysis.findings.filter(f => f.severity === 'medium'),
+            low: analysis.findings.filter(f => f.severity === 'low')
+        };
+        
+        ['critical', 'high', 'medium', 'low'].forEach(sev => {
+            if (grouped[sev].length > 0) {
+                const icon = sev === 'critical' ? '🚨' : sev === 'high' ? '⚠️' : sev === 'medium' ? '💡' : 'ℹ️';
+                console.log(`${icon} ${sev.toUpperCase()} (${grouped[sev].length} issues):`);
+                
+                grouped[sev].slice(0, 5).forEach((finding, index) => {
+                    console.log(`\n${index + 1}. ${finding.finding}`);
+                    console.log(`   File: ${finding.file}:${finding.line}`);
+                    console.log(`   Recommendation: ${finding.recommendation}`);
+                });
+                
+                if (grouped[sev].length > 5) {
+                    console.log(`\n   ... and ${grouped[sev].length - 5} more ${sev} issues`);
+                }
+                console.log('');
+            }
+        });
+    }
+    
+    return analysis;
+}
+
+// Main execution
+function main() {
+    const command = process.argv[2];
+    
+    switch (command) {
+        case '--json':
+            const analysis = analyzePerformanceReliability();
+            console.log(JSON.stringify(analysis, null, 2));
+            break;
+            
+        default:
+            generateReport();
+            break;
+    }
+}
+
+// Only run if this file is executed directly
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    analyzePerformanceReliability,
+    generateReport
+};
