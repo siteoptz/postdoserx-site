@@ -60,14 +60,8 @@ export default async function handler(req, res) {
         // Skip optional fields that may have schema compatibility issues
       });
 
-      // Create basic profile if name provided
-      if (firstName) {
-        const { createOrUpdateUserProfile } = await import('../../lib/database.js');
-        await createOrUpdateUserProfile(user.id, {
-          first_name: firstName,
-          last_name: lastName
-        });
-      }
+      // Skip profile creation to avoid schema compatibility issues
+      console.log('✅ User created successfully without profile:', user.email);
     } else {
       // For existing user, use as-is without attempting database updates
       // This avoids schema compatibility issues
