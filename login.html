@@ -120,29 +120,34 @@ body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);backgro
 // Global configuration
 let GOOGLE_CLIENT_ID = null;
 
+// Fallback Google Client ID (same as used in success.html and index.html)
+const FALLBACK_GOOGLE_CLIENT_ID = '301045903902-j9ibid26smhdclvi0454m355d0mroeir.apps.googleusercontent.com';
+
 // Initialize Google OAuth - matches dashboard login.html approach
 async function initializeGoogleAuth() {
   console.log('🔍 Initializing Google OAuth...');
   
   try {
-    // Get Google Client ID from dashboard config API
+    // Try to get Google Client ID from dashboard config API
     console.log('🔄 Fetching config from dashboard API...');
     const configResponse = await fetch('https://app.postdoserx.com/api/config');
     console.log('📍 Config response status:', configResponse.status);
     
-    if (!configResponse.ok) {
-      throw new Error(`Config API failed: ${configResponse.status}`);
+    if (configResponse.ok) {
+      const config = await configResponse.json();
+      console.log('📍 Config response:', config);
+      
+      if (config.googleClientId) {
+        GOOGLE_CLIENT_ID = config.googleClientId;
+        console.log('✅ Got Google Client ID from dashboard config');
+      } else {
+        console.warn('⚠️ No Google Client ID in config, using fallback');
+        GOOGLE_CLIENT_ID = FALLBACK_GOOGLE_CLIENT_ID;
+      }
+    } else {
+      console.warn(`⚠️ Config API failed (${configResponse.status}), using fallback Google Client ID`);
+      GOOGLE_CLIENT_ID = FALLBACK_GOOGLE_CLIENT_ID;
     }
-    
-    const config = await configResponse.json();
-    console.log('📍 Config response:', config);
-    
-    if (!config.googleClientId) {
-      throw new Error('Google Client ID not configured');
-    }
-    
-    GOOGLE_CLIENT_ID = config.googleClientId;
-    console.log('✅ Got Google Client ID from dashboard config');
     
     // Check if Google API is available
     if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
@@ -219,12 +224,48 @@ async function initializeGoogleAuth() {
     }
     
   } catch (configError) {
-    console.error('❌ Failed to load config or initialize Google OAuth:', configError);
+    console.error('❌ Failed to initialize Google OAuth:', configError);
+    
+    // Try once more with fallback Client ID if not already set
+    if (!GOOGLE_CLIENT_ID) {
+      console.log('🔄 Using fallback Google Client ID as last resort...');
+      GOOGLE_CLIENT_ID = FALLBACK_GOOGLE_CLIENT_ID;
+      
+      // Retry initialization with fallback
+      try {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+          google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleSignIn,
+            auto_select: false,
+            cancel_on_tap_outside: false
+          });
+          
+          const buttonContainer = document.getElementById('google-signin-button');
+          if (buttonContainer) {
+            buttonContainer.innerHTML = '';
+            google.accounts.id.renderButton(buttonContainer, { 
+              theme: 'outline', 
+              size: 'large', 
+              width: buttonContainer.offsetWidth || 300,
+              text: 'continue_with',
+              shape: 'rectangular'
+            });
+            console.log('✅ Google OAuth initialized with fallback Client ID');
+            return; // Success with fallback
+          }
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback initialization also failed:', fallbackError);
+      }
+    }
+    
+    // Show error message only if all attempts failed
     const buttonContainer = document.getElementById('google-signin-button');
     if (buttonContainer) {
       buttonContainer.innerHTML = `
         <div style="padding:12px;text-align:center;color:#dc2626;border:1px solid #fee;background:#fef2f2;border-radius:8px;">
-          Failed to load authentication system. Please refresh the page or try again later.
+          Google Sign-In temporarily unavailable. Please use email authentication below or try refreshing the page.
         </div>
       `;
     }

@@ -1051,6 +1051,19 @@ footer .f-links a:hover{color:var(--navy)}
   .contact-row{flex-direction:column;gap:14px}
   .contact-info{flex-direction:column;gap:14px}
 }
+
+/* Screen reader only class for accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 </style>
 </head>
 <body>
@@ -1339,7 +1352,8 @@ footer .f-links a:hover{color:var(--navy)}
     <h2>Your medication works.<br>Now give it the right fuel.</h2>
     <p class="final-sub">Free 7-day meal plan built around your injection schedule, plus a side effect management guide.</p>
     <form class="final-form" onsubmit="event.preventDefault();send(this)">
-      <input type="email" placeholder="Email address" required>
+      <label for="final-email" class="sr-only">Email address</label>
+      <input id="final-email" type="email" placeholder="Email address" required>
       <button type="submit" onclick="gtag('event', 'lead_magnet_form_submit', {'event_category': 'lead_generation', 'event_label': 'get_free_7_day_plan'})">Get free plan</button>
     </form>
     <p class="final-note">No spam. Unsubscribe anytime.</p>
@@ -1787,21 +1801,21 @@ Got it, thanks!
 <form class="contact-form" onsubmit="handleContactSubmit(event)">
 <div class="contact-row">
 <div>
-<label>First Name</label>
-<input type="text" placeholder="Jane" required>
+<label for="firstName">First Name</label>
+<input id="firstName" type="text" placeholder="Jane" required>
 </div>
 <div>
-<label>Last Name</label>
-<input type="text" placeholder="Doe" required>
+<label for="lastName">Last Name</label>
+<input id="lastName" type="text" placeholder="Doe" required>
 </div>
 </div>
 <div>
-<label>Email Address</label>
-<input type="email" placeholder="jane@example.com" required>
+<label for="emailAddress">Email Address</label>
+<input id="emailAddress" type="email" placeholder="jane@example.com" required>
 </div>
 <div>
-<label>Subject</label>
-<select required>
+<label for="contactSubject">Subject</label>
+<select id="contactSubject" required>
 <option value="" disabled selected>Select a topic</option>
 <option>General Inquiry</option>
 <option>Subscription & Billing</option>
@@ -1813,8 +1827,8 @@ Got it, thanks!
 </select>
 </div>
 <div>
-<label>Message</label>
-<textarea placeholder="Tell us how we can help..." required></textarea>
+<label for="contactMessage">Message</label>
+<textarea id="contactMessage" placeholder="Tell us how we can help..." required></textarea>
 </div>
 <button type="submit" class="contact-submit" id="contactBtn">Send Message</button>
 </form>

@@ -223,20 +223,51 @@ async function handleGoogleSignUp(response) {
       console.log('🔍 Auth API response:', authResult);
       
       if (authResult.success) {
-        // Use Supabase JWT token
+        // Use Supabase JWT token with secure localStorage handoff
         const { user, token } = authResult.data;
         userName = user.profile?.first_name || userName;
-        dashboardUrl = `https://app.postdoserx.com?token=${token}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${user.tier}&new=true&userId=${user.id}`;
-        console.log('✅ Using Supabase authentication');
+        
+        // Store token and user data securely in localStorage for dashboard pickup
+        const authData = {
+          token: token,
+          email: email,
+          name: userName,
+          tier: user.tier,
+          userId: user.id,
+          new: true,
+          timestamp: Date.now(),
+          source: 'post_checkout_google'
+        };
+        localStorage.setItem('postdoserx_auth_handoff', JSON.stringify(authData));
+        console.log('🔐 Auth data stored securely in localStorage');
+        
+        // Redirect to dashboard without token in URL (secure handoff)
+        dashboardUrl = 'https://app.postdoserx.com?handoff=true';
+        console.log('✅ Using Supabase authentication with secure handoff');
       } else {
         throw new Error('API authentication failed, using fallback');
       }
     } catch (apiError) {
       console.log('⚠️ Auth API failed, using fallback method:', apiError.message);
-      // Fallback: Generate simple auth token
+      // Fallback: Generate simple auth token with secure localStorage handoff
       const fallbackToken = generateSimpleAuthToken(email, googleId, tier);
-      dashboardUrl = `https://app.postdoserx.com?token=${fallbackToken}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(userName)}&tier=${tier}&new=true`;
-      console.log('✅ Using fallback authentication');
+      
+      // Store fallback token and user data securely in localStorage
+      const authData = {
+        token: fallbackToken,
+        email: email,
+        name: userName,
+        tier: tier,
+        new: true,
+        timestamp: Date.now(),
+        source: 'post_checkout_fallback'
+      };
+      localStorage.setItem('postdoserx_auth_handoff', JSON.stringify(authData));
+      console.log('🔐 Fallback auth data stored securely in localStorage');
+      
+      // Redirect to dashboard without token in URL (secure handoff)
+      dashboardUrl = 'https://app.postdoserx.com?handoff=true';
+      console.log('✅ Using fallback authentication with secure handoff');
     }
     
     showMessage(`Welcome to PostDoseRX ${tier === 'premium' ? 'Premium' : ''}, ${userName}! Setting up your dashboard...`, 'success');
