@@ -1,34 +1,50 @@
 # Security Suppressions
 
-This file documents suppressed security findings with justifications. Each suppression should be reviewed periodically and removed when no longer necessary.
+Use this file to track temporary security suppressions with explicit ownership and expiry.
 
-## Format
+## Rules
+- Every suppression must include all required fields.
+- `expiry` must be within 30 days unless explicitly approved as permanent.
+- Expired suppressions must fail CI.
+- Scope must be as narrow as possible (single file/rule when possible).
 
-```
-### [Finding ID or Pattern] - [Date]
-**Finding:** Brief description of the security finding
-**File:** Path to affected file
-**Severity:** critical|high|medium|low
-**Justification:** Explanation of why this is suppressed
-**Review Date:** When this suppression should be reviewed again
-**Approved By:** Name/role of person who approved suppression
-```
+## Suppressions
 
-## Active Suppressions
+<!--
+Template (copy/paste per item):
 
-### Example HTTP URL in Documentation - 2026-04-15
-**Finding:** HTTP URL found in README.md
-**File:** README.md:45
-**Severity:** low
-**Justification:** This is a documentation example showing HTTP vs HTTPS comparison
-**Review Date:** 2026-10-15
-**Approved By:** Security Team
+## SEC-<id> - <short title>
+- status: active | expired | removed
+- tool: <scanner/tool name>
+- rule_id: <rule identifier>
+- severity: critical | high | medium | low
+- scope: <file/path/glob>
+- introduced_on: YYYY-MM-DD
+- expiry: YYYY-MM-DD
+- owner: <name or team>
+- approver: <name>
+- justification: <why temporary suppression is required>
+- remediation_plan: <what will be done to remove suppression>
+- issue_link: <ticket/url>
+- last_reviewed: YYYY-MM-DD
+-->
 
-## Historical Suppressions
+## SEC-0001 - Example placeholder (remove when real entries exist)
+- status: removed
+- tool: example-scanner
+- rule_id: EXAMPLE_RULE
+- severity: low
+- scope: api/example.js
+- introduced_on: 2026-04-15
+- expiry: 2026-04-30
+- owner: engineering
+- approver: tech-lead
+- justification: Placeholder only.
+- remediation_plan: Remove before strict mode.
+- issue_link: N/A
+- last_reviewed: 2026-04-15
 
-### [Resolved suppressions moved here with resolution date]
-
-## Suppression Guidelines
+## Guidelines
 
 ### When to Suppress
 - False positives that cannot be fixed in the scanner
@@ -54,6 +70,13 @@ This file documents suppressed security findings with justifications. Each suppr
 - **Critical/High**: Security team + Technical lead approval required
 - **Medium**: Technical lead approval required
 - **Low**: Developer team lead approval sufficient
+
+## Expiry Enforcement
+
+The security scanner will automatically check suppression expiry dates and fail CI if:
+- Current date > expiry date
+- Required review date has passed
+- Suppression lacks required fields
 
 ## Notes
 

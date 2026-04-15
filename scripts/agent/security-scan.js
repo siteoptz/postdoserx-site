@@ -571,7 +571,7 @@ function filterAgainstBaseline(findings, baseline) {
     });
 }
 
-// Load suppressions
+// Load suppressions with expiry checking
 function loadSuppressions() {
     const suppressionPath = path.join(process.cwd(), 'docs', 'agent-stack', 'security-suppressions.md');
     
@@ -582,19 +582,74 @@ function loadSuppressions() {
     try {
         const content = fs.readFileSync(suppressionPath, 'utf8');
         const suppressions = [];
+        const currentDate = new Date();
         
-        // Parse suppression entries (simplified)
-        const entries = content.split('###').slice(1); // Skip header
+        // Parse structured suppressions (SEC-#### format)
+        const sections = content.split(/^## SEC-/m).slice(1); // Split on SEC- headers
         
-        entries.forEach(entry => {
-            const lines = entry.split('\n');
-            const title = lines[0].trim();
-            const finding = lines.find(l => l.startsWith('**Finding:**'))?.replace('**Finding:**', '').trim();
-            const file = lines.find(l => l.startsWith('**File:**'))?.replace('**File:**', '').trim();
+        sections.forEach(section => {
+            const lines = section.trim().split('\n');
+            if (lines.length < 5) return;
             
-            if (finding && file) {
-                suppressions.push({ title, finding, file });
+            const title = lines[0].split(' - ')[1] || lines[0]; // Extract title after ID
+            
+            // Parse suppression fields
+            const suppression = {
+                id: 'SEC-' + lines[0].split(' - ')[0].trim(),
+                title: title.trim(),
+                status: extractField(lines, 'status'),
+                tool: extractField(lines, 'tool'),
+                rule_id: extractField(lines, 'rule_id'),
+                severity: extractField(lines, 'severity'),
+                scope: extractField(lines, 'scope'),
+                introduced_on: extractField(lines, 'introduced_on'),
+                expiry: extractField(lines, 'expiry'),
+                owner: extractField(lines, 'owner'),
+                approver: extractField(lines, 'approver'),
+                justification: extractField(lines, 'justification'),
+                remediation_plan: extractField(lines, 'remediation_plan'),
+                issue_link: extractField(lines, 'issue_link'),
+                last_reviewed: extractField(lines, 'last_reviewed')
+            };
+            
+            // Skip if not properly formatted or removed
+            if (!suppression.id || !suppression.scope || suppression.status === 'removed') {
+                return;
             }
+            
+            // Check expiry
+            if (suppression.expiry) {
+                const expiryDate = new Date(suppression.expiry);
+                if (currentDate > expiryDate) {
+                    console.error(`❌ EXPIRED SUPPRESSION: ${suppression.id} expired on ${suppression.expiry}`);
+                    console.error(`   Scope: ${suppression.scope}`);
+                    console.error(`   This must be removed or renewed before CI can pass`);
+                    
+                    // Fail CI for expired suppressions
+                    if (process.argv.includes('--enforce-critical') || process.argv.includes('--ci')) {
+                        console.error('\n🚫 SECURITY ENFORCEMENT: Expired suppression detected');
+                        process.exit(2);
+                    }
+                    return; // Skip expired suppression
+                }
+                
+                // Warn if expiring soon (within 7 days)
+                const daysUntilExpiry = Math.ceil((expiryDate - currentDate) / (1000 * 60 * 60 * 24));
+                if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
+                    console.warn(`⚠️  Suppression ${suppression.id} expires in ${daysUntilExpiry} days`);
+                }
+            }
+            
+            // Map to legacy format for compatibility with existing suppression logic
+            suppressions.push({
+                title: suppression.title,
+                finding: suppression.rule_id || suppression.title,
+                file: suppression.scope,
+                id: suppression.id,
+                severity: suppression.severity,
+                status: suppression.status,
+                expiry: suppression.expiry
+            });
         });
         
         return suppressions;
@@ -602,6 +657,14 @@ function loadSuppressions() {
         console.warn(`Warning: Could not load suppressions: ${error.message}`);
         return [];
     }
+}
+
+// Extract field value from suppression lines
+function extractField(lines, fieldName) {
+    const line = lines.find(l => l.trim().startsWith(`- ${fieldName}:`));
+    if (!line) return null;
+    
+    return line.split(':').slice(1).join(':').trim();
 }
 
 // Apply suppressions to findings
