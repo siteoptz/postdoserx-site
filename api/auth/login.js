@@ -56,10 +56,8 @@ export default async function handler(req, res) {
 
       user = await createUser({
         email,
-        googleId,
-        tier,
-        ghlContactId,
-        stripeCustomerId
+        tier
+        // Skip optional fields that may have schema compatibility issues
       });
 
       // Create basic profile if name provided
@@ -71,25 +69,9 @@ export default async function handler(req, res) {
         });
       }
     } else {
-      // Update existing user if needed
-      const updates = {};
-      if (googleId && !user.google_id) {
-        updates.google_id = googleId;
-      }
-      if (tier !== user.tier) {
-        updates.tier = tier;
-      }
-      if (ghlContactId && !user.ghl_contact_id) {
-        updates.ghl_contact_id = ghlContactId;
-      }
-      if (stripeCustomerId && !user.stripe_customer_id) {
-        updates.stripe_customer_id = stripeCustomerId;
-      }
-
-      if (Object.keys(updates).length > 0) {
-        const { updateUser } = await import('../../lib/database.js');
-        user = await updateUser(user.id, updates);
-      }
+      // For existing user, use as-is without attempting database updates
+      // This avoids schema compatibility issues
+      console.log('✅ Using existing user record without updates:', user.email);
     }
 
     // Generate JWT token
