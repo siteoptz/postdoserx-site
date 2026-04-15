@@ -164,16 +164,45 @@ npm run agent:memory:check  # Verify memory system
 3. Use `ROLLBACK.md` for reverting changes if needed
 4. Check GitHub Issues for known problems
 
+## Implementation Status
+
+✅ **Phase 1: Core Infrastructure** (COMPLETED)
+- 5-lane parallel code review system
+- Security guidance with vulnerability scanning
+- Claude-MEM persistent memory integration
+- obra/superpowers behavior enforcement
+- Frontend design quality enforcement
+- gStack orchestration layer
+
+✅ **Phase 2: Enforcement Rollout** (STAGE B COMPLETE)
+- STEP 1: ✅ Security hard block (critical only)
+- STEP 2: ✅ Correctness review lane blocking
+- STEP 3: ✅ Architecture + regression lane critical-only blocking
+- STEP 4: ⏳ UI quality minimum bar (frontend-design)
+- STEP 5: ⏳ Superpowers process gate
+- STEP 6: ⏳ gStack release governance
+
+**Current Policy Stage**: Stage B (per ENFORCEMENT_POLICY.md)
+- ✅ Security: secrets + critical blocking
+- ✅ Correctness: high/critical blocking  
+- ✅ Architecture: critical blocking
+- ✅ Regression: critical blocking
+- ⚠️ Style/Performance: advisory only
+- ⏳ UI Quality: pending STEP 4
+- ⏳ Superpowers: pending STEP 5
+
 ## Files and Structure
 
 ```
 docs/agent-stack/
 ├── README.md                    # This file
+├── ENFORCEMENT_POLICY.md        # Agent enforcement policy and rules
 ├── BASELINE.md                  # Pre-implementation state
 ├── CHANGELOG.md                 # Implementation changes
 ├── ROLLBACK.md                  # Rollback instructions
 ├── memory-bootstrap.md          # Claude-MEM configuration
 ├── security-suppressions.md    # Security scan suppressions
+├── review-suppressions.md       # Code review suppressions
 ├── frontend-quality-checklist.md # UI/UX standards
 └── templates/
     ├── plan.md                  # Planning template

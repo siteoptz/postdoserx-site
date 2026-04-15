@@ -1,5 +1,78 @@
 # Agent Stack Implementation Changelog
 
+## 2026-04-15 - STEP 3 COMPLETE + Policy Formalization
+
+### ✅ STEP 3: Architecture + Regression Lane Critical-Only Enforcement
+
+**Architecture Lane Enforcement:**
+- Added `--enforce-critical` flag to `scripts/agent/review-architecture`
+- Integrated suppression system with `docs/agent-stack/review-suppressions.md`
+- Critical issues block, high/medium/low are warnings only
+- Exit codes: 0=success, 1=warnings, 2=blocking
+
+**Regression/History Lane Enforcement:**
+- Added `--enforce-critical` flag to `scripts/agent/review-regression-history`
+- Matching suppression system integration
+- Critical issues block, high/medium/low are warnings only
+- Consistent exit code pattern
+
+**Aggregate Review Integration:**
+- Updated `scripts/agent/aggregate-report` for STEP 3 enforcement
+- Lane-specific blocking rules: correctness (critical+high), arch/regression (critical-only)
+- Enhanced CI messaging to reflect multi-lane enforcement
+- Proper argument passing to individual reviewers
+
+**CI/CD Updates:**
+- Updated `.github/workflows/agent-quality.yml` for STEP 3
+- Changed from "correctness only" to "correctness + architecture/regression"
+- Enhanced error messages and troubleshooting guidance
+- Added new npm scripts for individual lane enforcement testing
+
+**Package.json Enhancements:**
+- `agent:review:architecture:enforce` - Architecture critical-only enforcement
+- `agent:review:regression:enforce` - Regression critical-only enforcement
+- Enhanced local development workflow
+
+### 📋 Policy Formalization
+
+**New File: `docs/agent-stack/ENFORCEMENT_POLICY.md`**
+- Comprehensive enforcement policy defining all gate families
+- Clear blocking vs advisory rules by context (CI/pre-push/release)
+- Protected paths and risk-based enforcement escalation
+- Suppression SLAs and rollback procedures
+- Three-stage rollout plan (A/B/C) with clear progression criteria
+
+**Documentation Updates:**
+- Updated `docs/agent-stack/README.md` with current implementation status
+- Added enforcement matrix showing current Stage B compliance
+- Enhanced file structure documentation
+
+### 🎯 Current Enforcement Status (Stage B)
+
+**Blocking in CI:**
+- ✅ Security: secrets + critical vulnerabilities
+- ✅ Correctness: critical + high logic issues  
+- ✅ Architecture: critical design issues only
+- ✅ Regression: critical compatibility issues only
+
+**Advisory in CI:**
+- ⚠️ Style/Performance: all severities advisory
+- ⏳ UI Quality: pending STEP 4
+- ⏳ Superpowers: pending STEP 5
+
+### 📊 Implementation Progress
+
+- STEP 1: ✅ Security hard block (critical only)
+- STEP 2: ✅ Correctness review lane blocking
+- STEP 3: ✅ Architecture + regression lane partial block
+- STEP 4: ⏳ UI quality minimum bar (frontend-design)
+- STEP 5: ⏳ Superpowers process gate
+- STEP 6: ⏳ gStack release governance
+
+**Next Milestone:** Move to Stage C after 5 clean PRs with Stage B enforcement.
+
+---
+
 ## Phase 0 - Baseline Recording ✅
 **Date**: 2026-04-15
 **Branch**: chore/agent-stack-setup
