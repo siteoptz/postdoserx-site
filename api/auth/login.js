@@ -38,7 +38,15 @@ export default async function handler(req, res) {
     }
 
     // Check if user exists
-    let user = await getUserByEmail(email);
+    console.log('🔍 Checking for existing user:', email);
+    let user;
+    try {
+      user = await getUserByEmail(email);
+      console.log('✅ User lookup successful:', !!user);
+    } catch (dbError) {
+      console.error('❌ Database error in getUserByEmail:', dbError.message);
+      throw new Error(`Database connection failed: ${dbError.message}`);
+    }
     
     if (!user) {
       // Create new user
@@ -114,7 +122,8 @@ export default async function handler(req, res) {
     console.error('Login error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: `Internal server error: ${error.message}`,
+      details: error.stack
     });
   }
 }
