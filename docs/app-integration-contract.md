@@ -27,29 +27,42 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 ```
 
-#### 3. Middleware Changes (if using Next.js/middleware)
-If your app has middleware that redirects unauthenticated users:
+#### 3. Critical App-Side Requirements
 
+**IMPORTANT**: Hash parameters are client-side only and invisible to server middleware.
+
+**Issue**: App middleware redirects `GET https://app.postdoserx.com/` to login before client JS can read hash.
+
+**Required App Fixes**:
+
+1. **Disable auth middleware on root route**:
 ```javascript
-// middleware.js - Allow auth callback routes
+// middleware.js - Allow unauthenticated access to /
 export function middleware(request) {
-  // Skip auth redirect if hash contains token (marketing handoff)
-  if (request.nextUrl.pathname === '/' && 
-      request.nextUrl.hash && 
-      request.nextUrl.hash.includes('token=')) {
+  // Skip auth check for root - let client JS handle hash tokens
+  if (request.nextUrl.pathname === '/') {
     return NextResponse.next();
   }
   
-  // Your existing auth middleware...
+  // Apply auth middleware to other routes
+  // Your existing auth logic for /dashboard, /profile, etc.
 }
 ```
 
-**OR** create a dedicated callback route:
-```javascript
-// Allow /auth/callback to bypass middleware
-export const config = {
-  matcher: ['/((?!auth/callback|_next/static|_next/image|favicon.ico).*)']
-}
+2. **Load dashboard-auth.js synchronously BEFORE router**:
+```html
+<!-- In app HTML head - BEFORE any router scripts -->
+<script src="https://postdoserx.com/dashboard-auth.js"></script>
+<script>
+  // Call immediately when DOM loads, BEFORE client router
+  window.addEventListener('DOMContentLoaded', async () => {
+    const isAuthenticated = await initializeDashboardAuth();
+    if (!isAuthenticated) {
+      window.location.href = 'https://postdoserx.com/login.html';
+    }
+    // Only then load your app router
+  });
+</script>
 ```
 
 ### Hash Parameters Format
@@ -67,13 +80,38 @@ The `dashboard-auth.js` script provides:
 - `cleanURL()` - Removes auth parameters from URL
 - `authenticatedFetch()` - API requests with JWT
 
-### Troubleshooting
+### Debugging App-Side Issues
 
-**If users still redirect back to login**:
-1. Ensure `dashboard-auth.js` loads before app router
-2. Check middleware is not blocking `/` with hash parameters  
-3. Verify `initializeDashboardAuth()` is called on page load
-4. Check browser DevTools for JavaScript errors
+**Marketing-side fixes are complete. Issues now require app team debugging:**
+
+**Step 1: Verify dashboard-auth.js Integration**
+```bash
+# Check if dashboard auth script is included
+curl -s "https://app.postdoserx.com/" | grep "dashboard-auth.js"
+
+# Verify script loads and function exists
+# In browser console on app.postdoserx.com:
+typeof initializeDashboardAuth
+// Should return "function"
+```
+
+**Step 2: Find Redirect Source in App**  
+```bash
+# Search for redirects to login.html in app codebase
+grep -r "login.html" app/
+grep -r "postdoserx.com/login" app/
+grep -r "window.location" app/middleware/
+```
+
+**Step 3: Network Analysis**
+- DevTools → Network → Navigate to `https://app.postdoserx.com/#token=...`
+- Document any 302 redirects that occur before client JS runs
+- Check if first request to app root returns redirect instead of HTML
+
+**Step 4: Middleware Investigation**
+- Examine app middleware/auth guards that run on `/` route
+- Verify middleware allows unauthenticated access to root with hash parameters
+- Check if middleware strips hash before client JS can access it
 
 ### Test Sequence
 
