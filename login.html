@@ -128,152 +128,101 @@ let GOOGLE_CLIENT_ID = null;
 // Fallback Google Client ID (same as used in success.html and index.html)
 const FALLBACK_GOOGLE_CLIENT_ID = '301045903902-j9ibid26smhdclvi0454m355d0mroeir.apps.googleusercontent.com';
 
-// Initialize Google OAuth - matches dashboard login.html approach
+// Initialize Google OAuth - simplified with immediate fallback
 async function initializeGoogleAuth() {
   console.log('🔍 Initializing Google OAuth...');
   
+  // Always set a Client ID first
+  GOOGLE_CLIENT_ID = FALLBACK_GOOGLE_CLIENT_ID;
+  
   try {
-    // Try to get Google Client ID from dashboard config API
-    console.log('🔄 Fetching config from dashboard API...');
+    // Try to get config from dashboard API (non-blocking)
     const configResponse = await fetch('https://app.postdoserx.com/api/config');
-    console.log('📍 Config response status:', configResponse.status);
-    
     if (configResponse.ok) {
       const config = await configResponse.json();
-      console.log('📍 Config response:', config);
-      
       if (config.googleClientId) {
         GOOGLE_CLIENT_ID = config.googleClientId;
         console.log('✅ Got Google Client ID from dashboard config');
-      } else {
-        console.warn('⚠️ No Google Client ID in config, using fallback');
-        GOOGLE_CLIENT_ID = FALLBACK_GOOGLE_CLIENT_ID;
       }
-    } else {
-      console.warn(`⚠️ Config API failed (${configResponse.status}), using fallback Google Client ID`);
-      GOOGLE_CLIENT_ID = FALLBACK_GOOGLE_CLIENT_ID;
     }
-    
-    // Check if Google API is available
-    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-      console.log('🔍 Google API available, initializing...');
+  } catch (configError) {
+    console.warn('⚠️ Config API unavailable, using fallback Client ID');
+  }
+  
+  // Always show a button immediately, even if Google API isn't ready
+  const buttonContainer = document.getElementById('google-signin-button');
+  if (!buttonContainer) {
+    console.error('❌ Google sign-in button container not found');
+    return;
+  }
+  
+  // Show custom button first as fallback
+  buttonContainer.innerHTML = `
+    <button class="google-signin-btn" onclick="handleGoogleButtonClick()" style="width:100%;padding:12px;border:1px solid #dadce0;border-radius:4px;background:white;color:#3c4043;font-size:14px;font-weight:500;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right: 12px;">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      Continue with Google
+    </button>
+  `;
+  
+  // Try to replace with official Google button if API is available
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    try {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleSignIn,
+        auto_select: false,
+        cancel_on_tap_outside: false
+      });
       
-      try {
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleSignIn,
-          auto_select: false,
-          cancel_on_tap_outside: false
-        });
-        
-        console.log('🔍 Google OAuth configuration completed');
-        
-        // Render the official Google button
-        const buttonContainer = document.getElementById('google-signin-button');
-        if (buttonContainer) {
-          console.log('📍 Button container found, rendering Google button...');
-          
-          // Clear any existing content first
+      // Try to render official button
+      setTimeout(() => {
+        try {
           buttonContainer.innerHTML = '';
-          
-          google.accounts.id.renderButton(
-            buttonContainer,
-            { 
-              theme: 'outline', 
-              size: 'large', 
-              width: buttonContainer.offsetWidth || 300,
-              text: 'continue_with',
-              shape: 'rectangular'
-            }
-          );
+          google.accounts.id.renderButton(buttonContainer, { 
+            theme: 'outline', 
+            size: 'large', 
+            width: buttonContainer.offsetWidth || 300,
+            text: 'continue_with',
+            shape: 'rectangular'
+          });
           console.log('✅ Google OAuth button rendered successfully');
-          
-          // Fallback: If button didn't render after 3 seconds, show custom button
-          setTimeout(() => {
-            if (!buttonContainer.querySelector('div[role="button"]') && 
-                buttonContainer.innerHTML.trim() === '') {
-              console.log('⚠️ Official button failed to render, creating fallback...');
-              buttonContainer.innerHTML = `
-                <button class="google-signin-btn" onclick="google.accounts.id.prompt()" style="width:100%;padding:12px;border:1px solid #dadce0;border-radius:4px;background:white;color:#3c4043;font-size:14px;font-weight:500;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right: 12px;">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  Continue with Google
-                </button>
-              `;
-            }
-          }, 3000);
-        } else {
-          console.error('❌ Google sign-in button container not found');
-        }
-        
-        console.log('✅ Google OAuth initialized successfully');
-        
-      } catch (initError) {
-        console.error('❌ Error initializing Google OAuth:', initError);
-        const buttonContainer = document.getElementById('google-signin-button');
-        if (buttonContainer) {
+        } catch (renderError) {
+          console.warn('⚠️ Official button failed, keeping fallback');
+          // Restore fallback button
           buttonContainer.innerHTML = `
-            <div style="padding:12px;text-align:center;color:#dc2626;border:1px solid #fee;background:#fef2f2;border-radius:8px;">
-              Failed to load Google Sign-In. Please refresh the page or try again later.
-            </div>
+            <button class="google-signin-btn" onclick="handleGoogleButtonClick()" style="width:100%;padding:12px;border:1px solid #dadce0;border-radius:4px;background:white;color:#3c4043;font-size:14px;font-weight:500;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+              <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right: 12px;">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Continue with Google
+            </button>
           `;
         }
-      }
-    } else {
-      console.log('⏰ Google API not ready yet, retrying in 500ms...');
-      setTimeout(initializeGoogleAuth, 500);
-    }
-    
-  } catch (configError) {
-    console.error('❌ Failed to initialize Google OAuth:', configError);
-    
-    // Try once more with fallback Client ID if not already set
-    if (!GOOGLE_CLIENT_ID) {
-      console.log('🔄 Using fallback Google Client ID as last resort...');
-      GOOGLE_CLIENT_ID = FALLBACK_GOOGLE_CLIENT_ID;
+      }, 100);
       
-      // Retry initialization with fallback
-      try {
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-          google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleSignIn,
-            auto_select: false,
-            cancel_on_tap_outside: false
-          });
-          
-          const buttonContainer = document.getElementById('google-signin-button');
-          if (buttonContainer) {
-            buttonContainer.innerHTML = '';
-            google.accounts.id.renderButton(buttonContainer, { 
-              theme: 'outline', 
-              size: 'large', 
-              width: buttonContainer.offsetWidth || 300,
-              text: 'continue_with',
-              shape: 'rectangular'
-            });
-            console.log('✅ Google OAuth initialized with fallback Client ID');
-            return; // Success with fallback
-          }
-        }
-      } catch (fallbackError) {
-        console.error('❌ Fallback initialization also failed:', fallbackError);
-      }
+    } catch (initError) {
+      console.error('❌ Google OAuth initialization failed:', initError);
+      // Keep the fallback button that's already shown
     }
-    
-    // Show error message only if all attempts failed
-    const buttonContainer = document.getElementById('google-signin-button');
-    if (buttonContainer) {
-      buttonContainer.innerHTML = `
-        <div style="padding:12px;text-align:center;color:#dc2626;border:1px solid #fee;background:#fef2f2;border-radius:8px;">
-          Google Sign-In temporarily unavailable. Please use email authentication below or try refreshing the page.
-        </div>
-      `;
-    }
+  } else {
+    console.log('⚠️ Google API not available, using fallback button');
+  }
+}
+
+// Handle fallback button clicks
+function handleGoogleButtonClick() {
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    google.accounts.id.prompt();
+  } else {
+    showMessage('Google authentication is temporarily unavailable. Please use email authentication below or refresh the page.', 'error');
   }
 }
 
