@@ -128,6 +128,7 @@ export default async function handler(req, res) {
       user = await createUser({
         email,
         googleId: googleId || null,
+        name: name || null,
         tier: validatedTier,
         ghlContactId: ghlResult.contactId,
         stripeCustomerId: stripeCustomerId || null
