@@ -295,6 +295,24 @@ async function handleGoogleSignIn(response) {
           }
           return;
         }
+
+        // GHL gating + entitlement failures are returned as 403 with JSON (same as POST body path)
+        if (authResponse.status === 403) {
+          try {
+            const parsed = JSON.parse(errorText);
+            if (parsed?.code === 'USER_NOT_FOUND_IN_GHL' || parsed?.code === 'GHL_VERIFICATION_UNAVAILABLE') {
+              showMessage(parsed?.message || 'No active plan found. Please choose a plan to continue.', 'info');
+              setTimeout(() => {
+                window.location.href = parsed?.redirect || '/#signup';
+              }, 2000);
+              return;
+            }
+            showMessage(parsed?.message || 'Access denied. Please try again or contact support.', 'error');
+          } catch {
+            showMessage('Access denied. Please try again or contact support.', 'error');
+          }
+          return;
+        }
         
         throw new Error(`HTTP ${authResponse.status}: ${errorText}`);
       }
@@ -410,6 +428,23 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
           showMessage(parsed?.message || 'Service temporarily unavailable. Please try again in a few minutes.', 'error');
         } catch {
           showMessage('Service temporarily unavailable. Please try again in a few minutes.', 'error');
+        }
+        return;
+      }
+
+      if (authResponse.status === 403) {
+        try {
+          const parsed = JSON.parse(errorText);
+          if (parsed?.code === 'USER_NOT_FOUND_IN_GHL' || parsed?.code === 'GHL_VERIFICATION_UNAVAILABLE') {
+            showMessage(parsed?.message || 'No active plan found. Please choose a plan to continue.', 'info');
+            setTimeout(() => {
+              window.location.href = parsed?.redirect || '/#signup';
+            }, 2000);
+            return;
+          }
+          showMessage(parsed?.message || 'Access denied. Please try again or contact support.', 'error');
+        } catch {
+          showMessage('Access denied. Please try again or contact support.', 'error');
         }
         return;
       }

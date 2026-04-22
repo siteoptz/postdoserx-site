@@ -6,6 +6,22 @@ const GHL_API_KEY = process.env.GHL_API_KEY || 'pit-e2c103d1-89c7-4e4a-9376-e3b5
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID || 'ECu5ScdYFmB0WnhvYoBU';
 
 // Server-side GHL validation function
+function tierFromGhlTags(tags) {
+  const list = Array.isArray(tags) ? tags : [];
+  let tier = 'trial';
+  if (list.some((tag) => String(tag).includes('premium') || String(tag).includes('paid'))) {
+    tier = 'premium';
+  } else if (list.some((tag) => String(tag).includes('trial'))) {
+    tier = 'trial';
+  }
+  return tier;
+}
+
+/**
+ * A LeadConnector contact may exist without a PostDose product selection. Only a PostDose
+ * tag indicates CRM entitlement. We still return `contactId` for partial-account repair, but
+ * set `qualified: false` so login can fail-closed for brand-new / ungated users.
+ */
 async function validateUserTierDirect(email) {
   const url = `${GHL_API_BASE}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
   
@@ -24,31 +40,22 @@ async function validateUserTierDirect(email) {
   const data = await response.json();
   
   if (!data.contacts || data.contacts.length === 0) {
-    // User not found in GHL - return null to trigger redirect to signup
+    // No CRM lead for this email
     return null;
   }
 
   const contact = data.contacts[0];
   const tags = contact.tags || [];
-
-  // IMPORTANT:
-  // A raw CRM "contact" is NOT sufficient to grant app access. Marketing funnels can create
-  // contacts without an actual PostDose plan selection. Require PostDose-specific tag(s).
   const hasPostDoseTag = tags.some((t) => String(t).toLowerCase().includes('postdoserx'));
   if (!hasPostDoseTag) {
-    console.log('🚫 GHL contact exists but is not a PostDose contact (missing postdoserx tag). Treating as not entitled.');
-    return null;
-  }
-  
-  // Determine tier from tags
-  let tier = 'trial'; // default
-  if (tags.some(tag => tag.includes('premium') || tag.includes('paid'))) {
-    tier = 'premium';
-  } else if (tags.some(tag => tag.includes('trial'))) {
-    tier = 'trial';
+    console.log('🚫 GHL contact exists but is not a PostDose contact (missing postdoserx tag). Not entitled.');
   }
 
+  const qualified = hasPostDoseTag;
+  const tier = tierFromGhlTags(tags);
+
   return {
+    qualified,
     tier,
     contactId: contact.id,
     tags: tags,
@@ -64,6 +71,12 @@ function isProvisionedUser(user) {
   const status = (user.subscription_status || '').toLowerCase();
   if (['active', 'trialing', 'paid', 'past_due'].includes(status)) return true;
   return false;
+}
+
+function isDbSubscriptionEntitled(user) {
+  if (!user) return false;
+  const status = (user.subscription_status || '').toLowerCase();
+  return ['active', 'trialing', 'paid', 'past_due'].includes(status);
 }
 
 /**
@@ -111,8 +124,8 @@ export default async function handler(req, res) {
       console.error('❌ GHL lookup error:', ghlError);
     }
 
-    // If we can find a CRM contact for a "partial" DB user, repair missing ghl_contact_id.
-    if (user && !provisionedBefore && ghlResult?.contactId) {
+    // If we can find an entitled CRM contact for a "partial" DB user, repair missing ghl_contact_id.
+    if (user && !provisionedBefore && ghlResult?.contactId && ghlResult.qualified) {
       try {
         const repaired = await updateUser(user.id, {
           ghl_contact_id: ghlResult.contactId,
@@ -127,16 +140,32 @@ export default async function handler(req, res) {
     }
 
     const provisioned = isProvisionedUser(user);
-    
-    // CRITICAL: Always re-validate GHL access, even for provisioned users
-    // Database flags can be stale; user might have lost access or changed plans
-    if (!ghlFailed && !ghlResult?.contactId) {
-      return res.status(403).json({
-        success: false,
-        code: 'USER_NOT_FOUND_IN_GHL',
-        message: 'No active plan found. Please choose a plan to continue.',
-        redirect: '/#signup'
-      });
+    const dbEntitled = isDbSubscriptionEntitled(user);
+
+    // Reconcile CRM vs DB:
+    // - A raw LeadConnector lead is not PostDose entitlement.
+    // - A Stripe/DB subscription can still be authoritative if CRM tags lag.
+    if (!ghlFailed) {
+      if (!ghlResult || !ghlResult.contactId) {
+        if (!provisioned && !dbEntitled) {
+          return res.status(403).json({
+            success: false,
+            code: 'USER_NOT_FOUND_IN_GHL',
+            message: 'No active plan found. Please choose a plan to continue.',
+            redirect: '/#signup'
+          });
+        }
+      } else if (!ghlResult.qualified) {
+        if (!provisioned && !dbEntitled) {
+          return res.status(403).json({
+            success: false,
+            code: 'USER_NOT_FOUND_IN_GHL',
+            message:
+              'We found this email in our system, but it is not linked to an active PostDose plan. Please continue signup to select a plan.',
+            redirect: '/#signup'
+          });
+        }
+      }
     }
 
     // If CRM is unavailable, allow provisioned users but block new users
@@ -159,9 +188,8 @@ export default async function handler(req, res) {
       : (ghlResult?.tier || 'trial');
 
     if (!user) {
-      // If there is no DB row, only create one when CRM can prove a contact exists.
-      // (This is NOT the "pick a plan" marketing path; that should create rows via webhooks/flows.)
-      if (!ghlResult?.contactId) {
+      // If there is no DB row, only create one when CRM can prove PostDose entitlement.
+      if (!ghlResult?.contactId || !ghlResult.qualified) {
         // Should be unreachable if !provisioned handled above, but keep fail-closed
         return res.status(403).json({
           success: false,

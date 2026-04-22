@@ -2582,7 +2582,9 @@ async function checkExistingUser(email) {
   const GHL_API_KEY = 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
   const GHL_LOCATION_ID = 'ECu5ScdYFmB0WnhvYoBU';
   
-  const url = `${GHL_API_BASE}/contacts/?locationId=${GHL_LOCATION_ID}&limit=100`;
+  // Use the same search endpoint as server-side auth to avoid "first 100 contacts" false negatives
+  // and to match `/api/auth/login` entitlement rules.
+  const url = `${GHL_API_BASE}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
   
   try {
     console.log('🔍 Searching for user in GHL:', email);
@@ -2601,17 +2603,19 @@ async function checkExistingUser(email) {
     }
 
     const data = await response.json();
-    console.log('📋 GHL search data - total contacts:', data.contacts?.length || 0);
-    
-    // Search for the specific email in the contacts array
-    const contact = data.contacts?.find(contact => 
-      contact.email && contact.email.toLowerCase() === email.toLowerCase()
-    );
+    console.log('📋 GHL search data - returned contacts:', data.contacts?.length || 0);
+    const contact = data.contacts && data.contacts[0] ? data.contacts[0] : null;
     
     if (contact) {
       const tags = contact.tags || [];
-      console.log('✅ Found existing user:', contact.email);
+      console.log('✅ Found CRM lead:', contact.email);
       console.log('🏷️ User tags:', tags);
+
+      const hasPostDoseTag = tags.some((t) => String(t).toLowerCase().includes('postdoserx'));
+      if (!hasPostDoseTag) {
+        console.log('🚫 CRM lead is not a PostDose account (no postdoserx tag) — treat as not an existing app user');
+        return { exists: false };
+      }
       
       // More comprehensive tier detection
       let tier = 'trial'; // default
@@ -2621,7 +2625,7 @@ async function checkExistingUser(email) {
         tier = 'trial';
       }
       
-      console.log(`✅ Existing user found with tier: ${tier}`);
+      console.log(`✅ PostDose customer found with tier: ${tier}`);
       return {
         exists: true,
         contact: contact,
