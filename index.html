@@ -2576,71 +2576,36 @@ function openSignupModal(planName = null, priceId = null) {
   }
 }
 
-// Check if user exists in GHL
+// Check if user should be sent to login (same rules as POST /api/auth/login — DB + GHL)
 async function checkExistingUser(email) {
-  const GHL_API_BASE = 'https://services.leadconnectorhq.com';
-  const GHL_API_KEY = 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
-  const GHL_LOCATION_ID = 'ECu5ScdYFmB0WnhvYoBU';
-  
-  // Use the same search endpoint as server-side auth to avoid "first 100 contacts" false negatives
-  // and to match `/api/auth/login` entitlement rules.
-  const url = `${GHL_API_BASE}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
-  
+  const trimmed = (email || '').trim();
+  if (!trimmed) {
+    return { exists: false };
+  }
   try {
-    console.log('🔍 Searching for user in GHL:', email);
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${GHL_API_KEY}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28'
-      }
+    const response = await fetch('/api/auth/check-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: trimmed })
     });
-
-    console.log('📨 GHL search response status:', response.status);
-
     if (!response.ok) {
-      throw new Error(`GHL Search Error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('📋 GHL search data - returned contacts:', data.contacts?.length || 0);
-    const contact = data.contacts && data.contacts[0] ? data.contacts[0] : null;
-    
-    if (contact) {
-      const tags = contact.tags || [];
-      console.log('✅ Found CRM lead:', contact.email);
-      console.log('🏷️ User tags:', tags);
-
-      const hasPostDoseTag = tags.some((t) => String(t).toLowerCase().includes('postdoserx'));
-      if (!hasPostDoseTag) {
-        console.log('🚫 CRM lead is not a PostDose account (no postdoserx tag) — treat as not an existing app user');
-        return { exists: false };
-      }
-      
-      // More comprehensive tier detection
-      let tier = 'trial'; // default
-      if (tags.some(tag => tag.includes('premium') || tag.includes('postdoserx-premium'))) {
-        tier = 'premium';
-      } else if (tags.some(tag => tag.includes('trial') || tag.includes('postdoserx-trial'))) {
-        tier = 'trial';
-      }
-      
-      console.log(`✅ PostDose customer found with tier: ${tier}`);
-      return {
-        exists: true,
-        contact: contact,
-        tier: tier,
-        tags: tags
-      };
-    } else {
-      console.log('👤 No existing user found - new customer');
+      console.error('❌ check-account HTTP', response.status);
       return { exists: false };
     }
+    const json = await response.json();
+    if (!json.success || !json.data) {
+      return { exists: false };
+    }
+    const { exists, tier } = json.data;
+    console.log('🔍 check-account:', { email: trimmed, exists, tier });
+    return {
+      exists: !!exists,
+      tier: tier || 'trial',
+      contact: exists ? { email: trimmed } : null,
+      tags: []
+    };
   } catch (error) {
     console.error('❌ Error checking existing user:', error);
-    // On error, assume user doesn't exist and proceed with signup
-    // This is a fallback to avoid blocking legitimate signups if GHL API fails
-    console.warn('⚠️ GHL API error - defaulting to allow signup');
     return { exists: false };
   }
 }

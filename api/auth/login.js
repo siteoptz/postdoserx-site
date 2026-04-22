@@ -1,83 +1,9 @@
 import { setCorsHeaders } from '../../lib/cors.js';
-
-// GHL Integration constants (keep server-side only)
-const GHL_API_BASE = 'https://services.leadconnectorhq.com';
-const GHL_API_KEY = process.env.GHL_API_KEY || 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
-const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID || 'ECu5ScdYFmB0WnhvYoBU';
-
-// Server-side GHL validation function
-function tierFromGhlTags(tags) {
-  const list = Array.isArray(tags) ? tags : [];
-  let tier = 'trial';
-  if (list.some((tag) => String(tag).includes('premium') || String(tag).includes('paid'))) {
-    tier = 'premium';
-  } else if (list.some((tag) => String(tag).includes('trial'))) {
-    tier = 'trial';
-  }
-  return tier;
-}
-
-/**
- * A LeadConnector contact may exist without a PostDose product selection. Only a PostDose
- * tag indicates CRM entitlement. We still return `contactId` for partial-account repair, but
- * set `qualified: false` so login can fail-closed for brand-new / ungated users.
- */
-async function validateUserTierDirect(email) {
-  const url = `${GHL_API_BASE}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
-  
-  const response = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${GHL_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Version': '2021-07-28'
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`GHL Search Error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  
-  if (!data.contacts || data.contacts.length === 0) {
-    // No CRM lead for this email
-    return null;
-  }
-
-  const contact = data.contacts[0];
-  const tags = contact.tags || [];
-  const hasPostDoseTag = tags.some((t) => String(t).toLowerCase().includes('postdoserx'));
-  if (!hasPostDoseTag) {
-    console.log('🚫 GHL contact exists but is not a PostDose contact (missing postdoserx tag). Not entitled.');
-  }
-
-  const qualified = hasPostDoseTag;
-  const tier = tierFromGhlTags(tags);
-
-  return {
-    qualified,
-    tier,
-    contactId: contact.id,
-    tags: tags,
-    customFields: contact.customFields || {}
-  };
-}
-
-function isProvisionedUser(user) {
-  if (!user) return false;
-  // A bare users row is NOT proof the user completed CRM/plan gating.
-  // `createUser()` uses upsert-on-email and can create "partial" rows.
-  if (user.ghl_contact_id) return true;
-  const status = (user.subscription_status || '').toLowerCase();
-  if (['active', 'trialing', 'paid', 'past_due'].includes(status)) return true;
-  return false;
-}
-
-function isDbSubscriptionEntitled(user) {
-  if (!user) return false;
-  const status = (user.subscription_status || '').toLowerCase();
-  return ['active', 'trialing', 'paid', 'past_due'].includes(status);
-}
+import {
+  fetchGhlContactEntitlement,
+  isProvisionedUser,
+  isDbSubscriptionEntitled
+} from '../../lib/auth-entitlement.js';
 
 /**
  * Auth login — load DB/JWT only on POST so OPTIONS preflight never 500s from missing env at import time.
@@ -118,7 +44,7 @@ export default async function handler(req, res) {
     let ghlFailed = false;
     try {
       console.log('🔍 GHL contact lookup for login:', email);
-      ghlResult = await validateUserTierDirect(email);
+      ghlResult = await fetchGhlContactEntitlement(email);
     } catch (ghlError) {
       ghlFailed = true;
       console.error('❌ GHL lookup error:', ghlError);
