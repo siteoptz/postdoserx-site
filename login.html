@@ -280,6 +280,18 @@ async function handleGoogleSignIn(response) {
       const authResult = await authResponse.json();
       console.log('🔍 Dashboard API response body:', authResult);
       
+      // Check for GHL gating failure
+      if (!authResult.success && authResult.code === 'USER_NOT_FOUND_IN_GHL') {
+        console.log('❌ User not found in GHL, redirecting to signup');
+        showMessage(authResult.message || 'No active plan found. Please choose a plan to continue.', 'info');
+        
+        setTimeout(() => {
+          console.log('🔄 Redirecting to signup for plan selection');
+          window.location.href = authResult.redirect || '/#signup';
+        }, 2000);
+        return;
+      }
+      
       if (authResult.success && authResult.data) {
         const user = authResult.data.user;
         const token = authResult.data.token;
@@ -364,6 +376,18 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
 
     const authResult = await authResponse.json();
     console.log('🔍 Email auth API response body:', authResult);
+    
+    // Check for GHL gating failure
+    if (!authResult.success && authResult.code === 'USER_NOT_FOUND_IN_GHL') {
+      console.log('❌ User not found in GHL, redirecting to signup');
+      showMessage(authResult.message || 'No active plan found. Please choose a plan to continue.', 'info');
+      
+      setTimeout(() => {
+        console.log('🔄 Redirecting to signup for plan selection');
+        window.location.href = authResult.redirect || '/#signup';
+      }, 2000);
+      return;
+    }
     
     if (authResult.success && authResult.data) {
       const user = authResult.data.user;

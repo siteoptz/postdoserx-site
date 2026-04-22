@@ -1,5 +1,52 @@
 import { setCorsHeaders } from '../../lib/cors.js';
 
+// GHL Integration constants (keep server-side only)
+const GHL_API_BASE = 'https://services.leadconnectorhq.com';
+const GHL_API_KEY = process.env.GHL_API_KEY || 'pit-e2c103d1-89c7-4e4a-9376-e3b50257d66b';
+const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID || 'ECu5ScdYFmB0WnhvYoBU';
+
+// Server-side GHL validation function
+async function validateUserTierDirect(email) {
+  const url = `${GHL_API_BASE}/contacts/search?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${GHL_API_KEY}`,
+      'Content-Type': 'application/json',
+      'Version': '2021-07-28'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`GHL Search Error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  
+  if (!data.contacts || data.contacts.length === 0) {
+    // User not found in GHL - return null to trigger redirect to signup
+    return null;
+  }
+
+  const contact = data.contacts[0];
+  const tags = contact.tags || [];
+  
+  // Determine tier from tags
+  let tier = 'trial'; // default
+  if (tags.some(tag => tag.includes('premium') || tag.includes('paid'))) {
+    tier = 'premium';
+  } else if (tags.some(tag => tag.includes('trial'))) {
+    tier = 'trial';
+  }
+
+  return {
+    tier,
+    contactId: contact.id,
+    tags: tags,
+    customFields: contact.customFields || {}
+  };
+}
+
 /**
  * Auth login — load DB/JWT only on POST so OPTIONS preflight never 500s from missing env at import time.
  */
@@ -30,6 +77,39 @@ export default async function handler(req, res) {
       });
     }
 
+    // CRITICAL: Perform GHL validation before allowing login
+    let validatedTier = tier;
+    try {
+      console.log('🔍 Validating user in GHL before login:', email);
+      
+      // Use GHL validation function directly (server-side)
+      const ghlResult = await validateUserTierDirect(email);
+      
+      if (!ghlResult || !ghlResult.contactId) {
+        console.log('❌ User not found in GHL system:', email);
+        return res.status(403).json({
+          success: false,
+          code: 'USER_NOT_FOUND_IN_GHL',
+          message: 'No active plan found. Please choose a plan to continue.',
+          redirect: '/#signup'
+        });
+      }
+
+      console.log('✅ GHL validation passed:', { email, tier: ghlResult.tier, contactId: ghlResult.contactId });
+      
+      // Use GHL tier instead of default
+      validatedTier = ghlResult.tier || tier;
+
+    } catch (ghlError) {
+      console.error('❌ GHL validation error:', ghlError);
+      return res.status(403).json({
+        success: false,
+        code: 'USER_NOT_FOUND_IN_GHL',
+        message: 'Unable to verify your account. Please choose a plan to continue.',
+        redirect: '/#signup'
+      });
+    }
+
     let user = await getUserByEmail(email);
 
     if (!user) {
@@ -39,7 +119,7 @@ export default async function handler(req, res) {
 
       user = await createUser({
         email,
-        tier
+        tier: validatedTier
         // Skip googleId and other optional fields for schema compatibility
       });
 
@@ -52,7 +132,7 @@ export default async function handler(req, res) {
     const token = await signJWT({
       userId: user.id,
       email: user.email,
-      tier: user.tier,
+      tier: validatedTier,
       iat: Math.floor(Date.now() / 1000)
     });
 
@@ -66,7 +146,7 @@ export default async function handler(req, res) {
         user: {
           id: user.id,
           email: user.email,
-          tier: user.tier,
+          tier: validatedTier,
           profile: user.user_profiles?.[0] || null
         },
         token
