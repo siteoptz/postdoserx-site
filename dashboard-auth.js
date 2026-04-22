@@ -40,30 +40,23 @@ class DashboardAuth {
 
   /**
    * Initialize dashboard authentication
-   * Checks for secure localStorage handoff first, then URL params or stored token
+   * Uses URL hash/query token handoff, then falls back to stored token
    */
   async init() {
     console.log('🚀 Dashboard auth initializing...');
     
-    // PRIORITY 1: Check for secure localStorage handoff (from success.html)
+    // Read incoming params from both query and hash
     const urlParams = getMergedUrlParams();
-    const hasHandoffParam = urlParams.get('handoff') === 'true';
-    
-    if (hasHandoffParam) {
-      console.log('🔐 Detected secure auth handoff from marketing site');
-      const handoffData = this.processSecureHandoff();
-      
-      if (handoffData) {
-        console.log('✅ Secure handoff successful');
-        this.cleanURL(); // Remove handoff parameter immediately
-        return true;
-      } else {
-        console.warn('⚠️ Secure handoff failed, falling back to URL/storage check');
-        // Continue to fallback methods
-      }
+    const hasDeprecatedHandoffParam = urlParams.get('handoff') === 'true';
+
+    if (hasDeprecatedHandoffParam) {
+      console.warn('⚠️ Deprecated handoff parameter detected (?handoff=true).');
+      console.warn('⚠️ Expected flow is hash token handoff: app.postdoserx.com/#token=...');
+      // Clear deprecated marker so it does not trigger repeated confusion/debug noise.
+      this.cleanURL();
     }
     
-    // PRIORITY 2: Legacy URL parameter check (for backwards compatibility)
+    // PRIORITY 1: URL parameter/hash token handoff
     // CRITICAL: Prevent infinite redirect loops by checking if we just came from login
     const fromLogin = urlParams.get('token') && urlParams.get('email');
     
@@ -188,69 +181,6 @@ class DashboardAuth {
     
     // Clear cookie
     document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-  }
-
-  /**
-   * Process secure auth handoff from localStorage
-   * Used when redirected from success.html with ?handoff=true
-   */
-  processSecureHandoff() {
-    try {
-      const handoffDataRaw = localStorage.getItem('postdoserx_auth_handoff');
-      if (!handoffDataRaw) {
-        console.warn('🔐 No handoff data found in localStorage');
-        return false;
-      }
-      
-      const handoffData = JSON.parse(handoffDataRaw);
-      const now = Date.now();
-      const maxAge = 5 * 60 * 1000; // 5 minutes max age for security
-      
-      // Validate handoff data structure and age
-      if (!handoffData.token || !handoffData.email || !handoffData.timestamp) {
-        console.error('🔐 Invalid handoff data structure');
-        localStorage.removeItem('postdoserx_auth_handoff');
-        return false;
-      }
-      
-      if (now - handoffData.timestamp > maxAge) {
-        console.error('🔐 Handoff data expired (older than 5 minutes)');
-        localStorage.removeItem('postdoserx_auth_handoff');
-        return false;
-      }
-      
-      // Extract and validate token
-      this.token = handoffData.token;
-      localStorage.setItem('auth_token', this.token);
-      
-      // Set user info from handoff data
-      this.user = {
-        email: handoffData.email,
-        tier: handoffData.tier || 'trial',
-        id: handoffData.userId,
-        profile: { first_name: handoffData.name }
-      };
-      
-      // Clear handoff data after successful processing (one-time use)
-      localStorage.removeItem('postdoserx_auth_handoff');
-      
-      console.log('🔐 Secure handoff processed successfully:', {
-        email: handoffData.email,
-        tier: handoffData.tier,
-        source: handoffData.source,
-        age: now - handoffData.timestamp + 'ms'
-      });
-      
-      // Set redirect prevention for this session
-      sessionStorage.setItem('prevent_auth_redirect', 'true');
-      
-      return true;
-      
-    } catch (error) {
-      console.error('🔐 Error processing secure handoff:', error);
-      localStorage.removeItem('postdoserx_auth_handoff');
-      return false;
-    }
   }
 
   /**
