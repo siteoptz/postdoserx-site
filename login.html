@@ -273,6 +273,28 @@ async function handleGoogleSignIn(response) {
           showMessage('Dashboard authentication service is temporarily unavailable. Please try again in a few minutes or contact support.', 'error');
           return; // Exit early for 500 errors
         }
+
+        // Transient upstream failures (commonly CRM/GHL verification)
+        // For new users, redirect to signup instead of showing "try again later"
+        if (authResponse.status === 503) {
+          try {
+            const parsed = JSON.parse(errorText);
+            if (parsed?.code === 'GHL_VERIFICATION_UNAVAILABLE') {
+              console.log('❌ GHL verification unavailable for new user, redirecting to signup');
+              showMessage('Unable to verify your account. Please choose a plan to get started.', 'info');
+              setTimeout(() => {
+                console.log('🔄 Redirecting to signup for plan selection');
+                window.location.href = '/#signup';
+              }, 2000);
+              return;
+            }
+            // For other 503 errors, show retry message
+            showMessage(parsed?.message || 'Service temporarily unavailable. Please try again in a few minutes.', 'error');
+          } catch {
+            showMessage('Service temporarily unavailable. Please try again in a few minutes.', 'error');
+          }
+          return;
+        }
         
         throw new Error(`HTTP ${authResponse.status}: ${errorText}`);
       }
@@ -280,9 +302,9 @@ async function handleGoogleSignIn(response) {
       const authResult = await authResponse.json();
       console.log('🔍 Dashboard API response body:', authResult);
       
-      // Check for GHL gating failure
-      if (!authResult.success && authResult.code === 'USER_NOT_FOUND_IN_GHL') {
-        console.log('❌ User not found in GHL, redirecting to signup');
+      // Check for GHL gating failure (redirect new users to signup)
+      if (!authResult.success && (authResult.code === 'USER_NOT_FOUND_IN_GHL' || authResult.code === 'GHL_VERIFICATION_UNAVAILABLE')) {
+        console.log('❌ User needs to sign up for a plan, redirecting to signup');
         showMessage(authResult.message || 'No active plan found. Please choose a plan to continue.', 'info');
         
         setTimeout(() => {
@@ -371,15 +393,36 @@ document.getElementById('email-login-form').addEventListener('submit', async fun
         showMessage('Authentication service is temporarily unavailable. Please try again shortly or contact support.', 'error');
         return;
       }
+      
+      // Handle 503 GHL verification errors for new users
+      if (authResponse.status === 503) {
+        try {
+          const parsed = JSON.parse(errorText);
+          if (parsed?.code === 'GHL_VERIFICATION_UNAVAILABLE') {
+            console.log('❌ GHL verification unavailable for new user, redirecting to signup');
+            showMessage('Unable to verify your account. Please choose a plan to get started.', 'info');
+            setTimeout(() => {
+              console.log('🔄 Redirecting to signup for plan selection');
+              window.location.href = '/#signup';
+            }, 2000);
+            return;
+          }
+          showMessage(parsed?.message || 'Service temporarily unavailable. Please try again in a few minutes.', 'error');
+        } catch {
+          showMessage('Service temporarily unavailable. Please try again in a few minutes.', 'error');
+        }
+        return;
+      }
+      
       throw new Error(`HTTP ${authResponse.status}: ${errorText}`);
     }
 
     const authResult = await authResponse.json();
     console.log('🔍 Email auth API response body:', authResult);
     
-    // Check for GHL gating failure
-    if (!authResult.success && authResult.code === 'USER_NOT_FOUND_IN_GHL') {
-      console.log('❌ User not found in GHL, redirecting to signup');
+    // Check for GHL gating failure (redirect new users to signup)
+    if (!authResult.success && (authResult.code === 'USER_NOT_FOUND_IN_GHL' || authResult.code === 'GHL_VERIFICATION_UNAVAILABLE')) {
+      console.log('❌ User needs to sign up for a plan, redirecting to signup');
       showMessage(authResult.message || 'No active plan found. Please choose a plan to continue.', 'info');
       
       setTimeout(() => {
