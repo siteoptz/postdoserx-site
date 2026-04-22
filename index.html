@@ -36,48 +36,77 @@ if (isDashboardRequest) {
   // IMMEDIATELY prevent any marketing page logic from running
   window.isDashboardSubdomain = true;
   
-  // CRITICAL: Immediately check for auth params and prevent any redirects
+  // CRITICAL: Check for auth params in BOTH query and hash parameters
   const urlParams = new URLSearchParams(window.location.search);
-  const hasToken = urlParams.get('token');
-  const hasEmail = urlParams.get('email');
+  const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.slice(1)) : new URLSearchParams();
   
-  console.log('🔍 IMMEDIATE AUTH PARAMS:', { hasToken: !!hasToken, hasEmail: !!hasEmail });
+  const hasToken = urlParams.get('token') || hashParams.get('token');
+  const hasEmail = urlParams.get('email') || hashParams.get('email');
+  
+  console.log('🔍 IMMEDIATE AUTH PARAMS:', { 
+    hasToken: !!hasToken, 
+    hasEmail: !!hasEmail,
+    fromQuery: !!urlParams.get('token'),
+    fromHash: !!hashParams.get('token')
+  });
   
   if (hasToken && hasEmail) {
-    console.log('✅ IMMEDIATE AUTH SUCCESS - Preventing any redirects');
-    // Set flag to prevent any redirect logic from running
+    console.log('✅ IMMEDIATE AUTH SUCCESS - Setting bootstrap flags');
+    // Set global bootstrap flag to prevent any redirects during auth init
+    window.__authBootstrapInProgress = true;
     sessionStorage.setItem('prevent_auth_redirect', 'true');
     sessionStorage.setItem('dashboard_auth_success', 'true');
     localStorage.setItem('prevent_auth_redirect', 'true');
     
-    // OVERRIDE: Prevent any window.location changes
+    // Safety timeout to clear bootstrap flag in case of failures
+    setTimeout(() => {
+      if (window.__authBootstrapInProgress) {
+        console.warn('⏰ Bootstrap timeout reached, clearing bootstrap flag as safety measure');
+        window.__authBootstrapInProgress = false;
+      }
+    }, 10000); // 10 second timeout
+    
+    // OVERRIDE: Prevent any window.location changes during bootstrap
     const originalLocationReplace = window.location.replace;
     const originalLocationAssign = window.location.assign;
+    const originalHref = Object.getOwnPropertyDescriptor(window.location, 'href') || 
+                        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(window.location), 'href');
+    
     window.location.replace = function(url) {
-      console.warn('🚨 BLOCKED window.location.replace to:', url);
-      if (!url.includes('login.html')) {
-        originalLocationReplace.call(window.location, url);
+      if (window.__authBootstrapInProgress) {
+        console.warn('🚨 BLOCKED window.location.replace during bootstrap to:', url);
+        return;
       }
-    };
-    window.location.assign = function(url) {
-      console.warn('🚨 BLOCKED window.location.assign to:', url);
-      if (!url.includes('login.html')) {
-        originalLocationAssign.call(window.location, url);
-      }
+      console.log('✅ ALLOWING window.location.replace to:', url);
+      originalLocationReplace.call(window.location, url);
     };
     
-    // Override window.location.href setter
-    let currentHref = window.location.href;
+    window.location.assign = function(url) {
+      if (window.__authBootstrapInProgress) {
+        console.warn('🚨 BLOCKED window.location.assign during bootstrap to:', url);
+        return;
+      }
+      console.log('✅ ALLOWING window.location.assign to:', url);
+      originalLocationAssign.call(window.location, url);
+    };
+    
+    // Override window.location.href setter with bootstrap check
     Object.defineProperty(window.location, 'href', {
-      get: function() { return currentHref; },
+      get: function() { 
+        return originalHref ? originalHref.get.call(window.location) : window.location.href; 
+      },
       set: function(url) {
-        console.warn('🚨 ATTEMPTED window.location.href change to:', url);
-        if (url.includes('login.html')) {
-          console.warn('🚨 BLOCKED redirect to login.html!');
+        console.log('🔍 ATTEMPTED window.location.href change to:', url);
+        if (window.__authBootstrapInProgress) {
+          console.warn('🚨 BLOCKED redirect during bootstrap to:', url);
           return;
         }
-        currentHref = url;
-        originalLocationAssign.call(window.location, url);
+        console.log('✅ ALLOWING window.location.href change to:', url);
+        if (originalHref && originalHref.set) {
+          originalHref.set.call(window.location, url);
+        } else {
+          originalLocationAssign.call(window.location, url);
+        }
       }
     });
   }
@@ -86,6 +115,15 @@ if (isDashboardRequest) {
   document.addEventListener('DOMContentLoaded', function() {
     // Hide all marketing content
     document.body.style.display = 'none';
+    
+    // CRITICAL: Ensure dashboard auth script is loaded in head for proper priority
+    if (!document.querySelector('script[src*="dashboard-auth.js"]')) {
+      const headAuthScript = document.createElement('script');
+      headAuthScript.src = 'https://postdoserx.com/dashboard-auth.js';
+      headAuthScript.async = false; // Load synchronously for deterministic order
+      document.head.appendChild(headAuthScript);
+      console.log('📱 Added dashboard-auth.js to head for priority loading');
+    }
     
     // Create dashboard container
     document.body.innerHTML = `
@@ -213,8 +251,7 @@ if (isDashboardRequest) {
       </style>
     `;
     
-    // Load dashboard auth from marketing origin — relative "/dashboard-auth.js" would hit
-    // app.postdoserx.com and 404 if the app is a separate host/stack (see skills.md).
+    // CRITICAL: Load dashboard-auth.js BEFORE any other scripts to ensure proper bootstrap order
     const authScript = document.createElement('script');
     authScript.src = 'https://postdoserx.com/dashboard-auth.js';
     authScript.onload = function() {
@@ -226,14 +263,17 @@ if (isDashboardRequest) {
       console.log('- getCurrentUser:', typeof window.getCurrentUser);
       console.log('- authenticatedFetch:', typeof window.authenticatedFetch);
       
-      // CRITICAL DEBUG: Check current URL parameters
+      // CRITICAL DEBUG: Check current URL parameters (both query and hash)
       const urlParams = new URLSearchParams(window.location.search);
+      const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.slice(1)) : new URLSearchParams();
+      
       console.log('🔍 Current URL parameters:', {
-        token: urlParams.get('token')?.substring(0, 20) + '...',
-        email: urlParams.get('email'),
-        name: urlParams.get('name'),
-        tier: urlParams.get('tier'),
-        userId: urlParams.get('userId')
+        token: (urlParams.get('token') || hashParams.get('token'))?.substring(0, 20) + '...',
+        email: urlParams.get('email') || hashParams.get('email'),
+        name: urlParams.get('name') || hashParams.get('name'),
+        tier: urlParams.get('tier') || hashParams.get('tier'),
+        userId: urlParams.get('userId') || hashParams.get('userId'),
+        source: urlParams.get('token') ? 'query' : 'hash'
       });
       
       if (typeof window.initializeDashboardAuth !== 'function') {
@@ -246,10 +286,16 @@ if (isDashboardRequest) {
         return;
       }
       
-      // Initialize dashboard authentication
-      console.log('🚀 About to call initializeDashboardAuth()...');
+      // CRITICAL: Initialize dashboard authentication BEFORE any other logic
+      console.log('🚀 About to call initializeDashboardAuth() with bootstrap priority...');
+      
+      // Clear bootstrap flag after successful auth
       initializeDashboardAuth().then(function(isAuthenticated) {
         console.log('✅ initializeDashboardAuth completed, result:', isAuthenticated);
+        
+        // Clear bootstrap flag
+        window.__authBootstrapInProgress = false;
+        
         if (isAuthenticated) {
           document.getElementById('dashboard-auth-status').innerHTML = `
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -260,13 +306,17 @@ if (isDashboardRequest) {
           
           // Load dashboard data
           loadDashboardData();
+        } else {
+          console.warn('⚠️ Authentication failed, but not redirecting due to bootstrap mode');
         }
       }).catch(function(error) {
         console.error('Dashboard auth failed:', error);
+        window.__authBootstrapInProgress = false;
+        
         document.getElementById('dashboard-auth-status').innerHTML = \`
           <div style="display: flex; align-items: center; gap: 12px;">
             <div style="width: 12px; height: 12px; background: var(--magenta); border-radius: 50%;"></div>
-            <span style="color: var(--magenta); font-weight: 600;">Dashboard authentication in progress...</span>
+            <span style="color: var(--magenta); font-weight: 600;">Authentication error - check console for details</span>
           </div>
         \`;
       });
@@ -282,18 +332,21 @@ if (isDashboardRequest) {
         </div>
       \`;
       
-      // Fallback: Try to extract token from URL manually and show basic dashboard
+      // Fallback: Try to extract token from URL manually (both query and hash) and show basic dashboard
       const urlParams = new URLSearchParams(window.location.search);
-      const token = urlParams.get('token');
-      const email = urlParams.get('email');
-      const name = urlParams.get('name');
-      const tier = urlParams.get('tier');
+      const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.slice(1)) : new URLSearchParams();
+      
+      const token = urlParams.get('token') || hashParams.get('token');
+      const email = urlParams.get('email') || hashParams.get('email');
+      const name = urlParams.get('name') || hashParams.get('name');
+      const tier = urlParams.get('tier') || hashParams.get('tier');
       
       if (token && email) {
         console.log('🔄 FALLBACK: Found token and email in URL, proceeding with basic dashboard');
         console.log('🔒 FALLBACK: Setting permanent redirect prevention flags');
         
-        // CRITICAL: Prevent ANY redirects
+        // CRITICAL: Prevent ANY redirects and clear bootstrap flag
+        window.__authBootstrapInProgress = false;
         sessionStorage.setItem('prevent_auth_redirect', 'true');
         localStorage.setItem('prevent_auth_redirect', 'true');
         
@@ -301,6 +354,12 @@ if (isDashboardRequest) {
         localStorage.setItem('auth_token', token);
         localStorage.setItem('user_email', email);
         localStorage.setItem('user_tier', tier || 'trial');
+        
+        // Clean URL hash if token came from there
+        if (hashParams.get('token')) {
+          console.log('🧹 Cleaning hash parameters after successful token extraction');
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        }
         
         // Show dashboard immediately
         document.getElementById('dashboard-loading').style.display = 'none';
