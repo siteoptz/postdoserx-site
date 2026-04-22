@@ -77,16 +77,60 @@ export default async function handler(req, res) {
       });
     }
 
-    // CRITICAL: Perform GHL validation before allowing login
-    let validatedTier = tier;
+    // Determine whether this is a returning user BEFORE applying strict GHL gating.
+    // Returning users may legitimately exist in Supabase even if GHL search fails or the CRM
+    // contact was never created/synced. Blocking them with USER_NOT_FOUND_IN_GHL breaks logout/login.
+    let user = await getUserByEmail(email);
+    const isReturningUser = !!user;
+
+    // GHL validation / tier hints (best-effort for returning users; strict for brand-new users)
+    let validatedTier = isReturningUser ? (user.tier || tier) : tier;
+    let ghlResult = null;
     try {
       console.log('🔍 Validating user in GHL before login:', email);
-      
-      // Use GHL validation function directly (server-side)
-      const ghlResult = await validateUserTierDirect(email);
-      
-      if (!ghlResult || !ghlResult.contactId) {
-        console.log('❌ User not found in GHL system:', email);
+      ghlResult = await validateUserTierDirect(email);
+
+      if (ghlResult?.contactId) {
+        console.log('✅ GHL validation passed:', { email, tier: ghlResult.tier, contactId: ghlResult.contactId });
+        validatedTier = ghlResult.tier || validatedTier;
+      } else if (!isReturningUser) {
+        console.log('❌ User not found in GHL system (new user):', email);
+        return res.status(403).json({
+          success: false,
+          code: 'USER_NOT_FOUND_IN_GHL',
+          message: 'No active plan found. Please choose a plan to continue.',
+          redirect: '/#signup'
+        });
+      } else {
+        console.warn('⚠️ GHL returned no contact for returning user; continuing with DB tier:', {
+          email,
+          tier: validatedTier
+        });
+      }
+    } catch (ghlError) {
+      console.error('❌ GHL validation error:', ghlError);
+      if (!isReturningUser) {
+        // For new users: GHL API error = redirect to signup (fail-closed)
+        // They need to go through signup flow to establish GHL contact first
+        return res.status(403).json({
+          success: false,
+          code: 'USER_NOT_FOUND_IN_GHL',
+          message: 'Unable to verify your account. Please choose a plan to continue.',
+          redirect: '/#signup'
+        });
+      }
+
+      console.warn('⚠️ GHL verification failed for returning user; continuing with DB tier:', {
+        email,
+        tier: validatedTier
+      });
+    }
+
+    if (!user) {
+      // NEW USERS: Only create if GHL validation succeeded
+      if (!ghlResult?.contactId) {
+        // This should not happen - GHL validation should have returned 403/503 above
+        console.error('❌ CRITICAL: New user reached creation without GHL validation:', email);
         return res.status(403).json({
           success: false,
           code: 'USER_NOT_FOUND_IN_GHL',
@@ -95,24 +139,6 @@ export default async function handler(req, res) {
         });
       }
 
-      console.log('✅ GHL validation passed:', { email, tier: ghlResult.tier, contactId: ghlResult.contactId });
-      
-      // Use GHL tier instead of default
-      validatedTier = ghlResult.tier || tier;
-
-    } catch (ghlError) {
-      console.error('❌ GHL validation error:', ghlError);
-      return res.status(403).json({
-        success: false,
-        code: 'USER_NOT_FOUND_IN_GHL',
-        message: 'Unable to verify your account. Please choose a plan to continue.',
-        redirect: '/#signup'
-      });
-    }
-
-    let user = await getUserByEmail(email);
-
-    if (!user) {
       const nameParts = name ? name.split(' ') : [];
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
@@ -123,7 +149,7 @@ export default async function handler(req, res) {
         // Skip googleId and other optional fields for schema compatibility
       });
 
-      // Skip profile creation to avoid schema compatibility issues
+      console.log('✅ Created new user after GHL validation:', { email, tier: validatedTier, ghlContactId: ghlResult.contactId });
     } else {
       // For existing user, use as-is without attempting database updates
       // This avoids schema compatibility issues
