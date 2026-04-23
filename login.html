@@ -108,7 +108,53 @@ body{font-family:'Montserrat',-apple-system,sans-serif;color:var(--text);backgro
     </div>
 
     <div class="auth-links" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <a href="mailto:support@postdoserx.com?subject=Password Reset Request">Forgot your password?</a>
+      <a href="#" onclick="openPasswordResetModal(); return false;">Forgot your password?</a>
+    </div>
+  </div>
+</div>
+
+<!-- Password Reset Modal -->
+<div id="password-reset-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(27,42,74,0.7); z-index:10000; backdrop-filter:blur(4px);">
+  <div style="display:flex; align-items:center; justify-content:center; height:100%; padding:20px;">
+    <div style="background:var(--white); border-radius:16px; padding:32px; max-width:400px; width:100%; position:relative; box-shadow:0 4px 20px rgba(27,42,74,0.15);">
+      <button onclick="closePasswordResetModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:24px; cursor:pointer; color:var(--slate); padding:4px;">×</button>
+      
+      <!-- Step 1: Email Input -->
+      <div id="reset-step-1" style="display:block;">
+        <h3 style="font-family:'DM Serif Display',serif; font-size:24px; color:var(--navy); margin-bottom:8px; text-align:center;">Reset Password</h3>
+        <p style="color:var(--text-sec); font-size:14px; margin-bottom:24px; text-align:center;">Enter your email address and we'll send you a verification code</p>
+        
+        <div id="reset-message-1"></div>
+        
+        <form id="password-reset-form" onsubmit="handlePasswordResetRequest(event)">
+          <div class="form-group">
+            <label for="reset-email" class="form-label">Email Address</label>
+            <input type="email" id="reset-email" class="form-input" placeholder="your.email@example.com" required>
+          </div>
+          <button type="submit" class="form-submit" id="reset-submit-btn">Send Verification Code</button>
+        </form>
+      </div>
+      
+      <!-- Step 2: Code Verification -->
+      <div id="reset-step-2" style="display:none;">
+        <h3 style="font-family:'DM Serif Display',serif; font-size:24px; color:var(--navy); margin-bottom:8px; text-align:center;">Enter Verification Code</h3>
+        <p style="color:var(--text-sec); font-size:14px; margin-bottom:24px; text-align:center;">We sent a 6-character code to <span id="reset-email-display"></span></p>
+        
+        <div id="reset-message-2"></div>
+        
+        <form id="code-verification-form" onsubmit="handleCodeVerification(event)">
+          <div class="form-group">
+            <label for="verification-code" class="form-label">Verification Code</label>
+            <input type="text" id="verification-code" class="form-input" placeholder="ABC123" maxlength="6" style="font-family:monospace; font-size:18px; text-align:center; text-transform:uppercase;" required>
+          </div>
+          <button type="submit" class="form-submit" id="verify-submit-btn">Verify Code</button>
+          <button type="button" onclick="goBackToEmailStep()" style="width:100%; background:transparent; color:var(--slate); border:1px solid var(--border); padding:12px; border-radius:8px; font-size:14px; cursor:pointer; margin-top:12px;">← Back</button>
+        </form>
+        
+        <div style="text-align:center; margin-top:16px;">
+          <a href="#" onclick="resendVerificationCode(); return false;" style="color:var(--magenta); font-size:14px; text-decoration:none;">Didn't receive the code? Resend</a>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -162,6 +208,7 @@ async function initializeGoogleAuth() {
   
   // Always set a Client ID first
   GOOGLE_CLIENT_ID = FALLBACK_GOOGLE_CLIENT_ID;
+  console.log('🔧 Initial Client ID set:', GOOGLE_CLIENT_ID);
   
   try {
     // Try to get config from dashboard API (non-blocking)
@@ -170,11 +217,11 @@ async function initializeGoogleAuth() {
       const config = await configResponse.json();
       if (config.googleClientId) {
         GOOGLE_CLIENT_ID = config.googleClientId;
-        console.log('✅ Got Google Client ID from dashboard config');
+        console.log('✅ Got Google Client ID from dashboard config:', GOOGLE_CLIENT_ID);
       }
     }
   } catch (configError) {
-    console.warn('⚠️ Config API unavailable, using fallback Client ID');
+    console.warn('⚠️ Config API unavailable, using fallback Client ID:', GOOGLE_CLIENT_ID);
   }
   
   // Always show a button immediately, even if Google API isn't ready
@@ -186,6 +233,7 @@ async function initializeGoogleAuth() {
   
   // Create a more prominent fallback button
   function createFallbackButton() {
+    console.log('🎨 Creating fallback button with Client ID:', GOOGLE_CLIENT_ID);
     buttonContainer.innerHTML = `
       <button class="google-signin-btn" onclick="handleGoogleButtonClick()" style="width:100%;padding:16px;border:1px solid #dadce0;border-radius:8px;background:white;color:#3c4043;font-size:16px;font-weight:500;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:20px;transition:all 0.2s ease;">
         <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 12px;">
@@ -201,7 +249,7 @@ async function initializeGoogleAuth() {
   
   // Show fallback button immediately
   createFallbackButton();
-  console.log('✅ Fallback Google button rendered');
+  console.log('✅ Fallback Google button rendered with Client ID:', GOOGLE_CLIENT_ID);
   
   // Try to replace with official Google button if API is available
   // Wait a bit longer for Google API to load
@@ -266,19 +314,25 @@ function handleGoogleButtonClick() {
   console.log('🔍 Google accounts.id exists:', typeof google !== 'undefined' && google.accounts && google.accounts.id);
   console.log('🔍 Current Client ID:', GOOGLE_CLIENT_ID);
   
+  // CRITICAL FIX: Ensure Client ID is set before proceeding
+  if (!GOOGLE_CLIENT_ID) {
+    console.log('🔧 Client ID is null, setting fallback Client ID...');
+    GOOGLE_CLIENT_ID = FALLBACK_GOOGLE_CLIENT_ID;
+    console.log('🔧 Client ID now set to:', GOOGLE_CLIENT_ID);
+  }
+  
   if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
     console.log('✅ Google API available, prompting for sign-in');
     try {
-      // Try to initialize first if not already done
-      if (!google.accounts.id.prompt) {
-        console.log('🔧 Re-initializing Google API...');
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleSignIn,
-          auto_select: false,
-          cancel_on_tap_outside: false
-        });
-      }
+      // Always re-initialize with proper Client ID to be safe
+      console.log('🔧 Initializing Google API with Client ID:', GOOGLE_CLIENT_ID);
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleSignIn,
+        auto_select: false,
+        cancel_on_tap_outside: false
+      });
+      console.log('✅ Google API initialized, prompting for sign-in...');
       google.accounts.id.prompt();
     } catch (promptError) {
       console.error('❌ Google prompt failed:', promptError);
@@ -628,6 +682,15 @@ document.addEventListener('DOMContentLoaded', function() {
     showMessage('Welcome back! Please sign in to access your account.', 'info');
   }
   
+  // Check if user came from password reset link
+  if (window.location.hash === '#forgot') {
+    setTimeout(() => {
+      openPasswordResetModal();
+      // Clear the hash from URL
+      history.replaceState(null, null, window.location.pathname + window.location.search);
+    }, 500);
+  }
+  
   // Auto-focus email field if no email pre-filled
   if (!email) {
     document.getElementById('email').focus();
@@ -661,6 +724,204 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Note: Google OAuth initialization handled by onload callback from script tag
   console.log('🔄 DOM ready, Google OAuth will initialize when script loads');
+});
+
+// Password Reset Modal Functions
+let currentResetEmail = '';
+
+function openPasswordResetModal() {
+  console.log('🔒 Opening password reset modal');
+  document.getElementById('password-reset-modal').style.display = 'block';
+  document.getElementById('reset-step-1').style.display = 'block';
+  document.getElementById('reset-step-2').style.display = 'none';
+  
+  // Pre-fill email from main form if available
+  const mainEmailField = document.getElementById('email');
+  const resetEmailField = document.getElementById('reset-email');
+  if (mainEmailField.value && resetEmailField) {
+    resetEmailField.value = mainEmailField.value;
+  }
+  
+  clearResetMessages();
+  setTimeout(() => {
+    if (resetEmailField) resetEmailField.focus();
+  }, 100);
+}
+
+function closePasswordResetModal() {
+  console.log('🔒 Closing password reset modal');
+  document.getElementById('password-reset-modal').style.display = 'none';
+  clearResetMessages();
+  
+  // Reset forms
+  document.getElementById('password-reset-form').reset();
+  document.getElementById('code-verification-form').reset();
+}
+
+function goBackToEmailStep() {
+  document.getElementById('reset-step-1').style.display = 'block';
+  document.getElementById('reset-step-2').style.display = 'none';
+  clearResetMessages();
+}
+
+async function handlePasswordResetRequest(event) {
+  event.preventDefault();
+  
+  const submitBtn = document.getElementById('reset-submit-btn');
+  const originalText = submitBtn.textContent;
+  const email = document.getElementById('reset-email').value;
+  
+  if (!email) {
+    showResetMessage('Please enter your email address', 'error', 'reset-message-1');
+    return;
+  }
+  
+  try {
+    submitBtn.textContent = 'Sending...';
+    submitBtn.disabled = true;
+    clearResetMessages();
+    currentResetEmail = email;
+    
+    console.log('🔒 Requesting password reset for:', email);
+    
+    const response = await fetch('/api/password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'request_reset',
+        email: email
+      })
+    });
+
+    const result = await response.json();
+    console.log('🔒 Password reset response:', result);
+    
+    if (response.ok && result.success) {
+      // Show success message
+      let message = result.message || 'Verification code sent! Check your email.';
+      
+      // Show demo code if available (for testing)
+      if (result.demoCode) {
+        message += ` Demo code: ${result.demoCode}`;
+      }
+      
+      showResetMessage(message, 'success', 'reset-message-1');
+      
+      // Move to step 2 after brief delay
+      setTimeout(() => {
+        document.getElementById('reset-step-1').style.display = 'none';
+        document.getElementById('reset-step-2').style.display = 'block';
+        document.getElementById('reset-email-display').textContent = email;
+        document.getElementById('verification-code').focus();
+      }, 1500);
+      
+    } else {
+      throw new Error(result.error || 'Failed to send verification code');
+    }
+    
+  } catch (error) {
+    console.error('🔒 Password reset request failed:', error);
+    showResetMessage('Failed to send verification code. Please try again.', 'error', 'reset-message-1');
+  } finally {
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+  }
+}
+
+async function handleCodeVerification(event) {
+  event.preventDefault();
+  
+  const submitBtn = document.getElementById('verify-submit-btn');
+  const originalText = submitBtn.textContent;
+  const code = document.getElementById('verification-code').value;
+  
+  if (!code || code.length !== 6) {
+    showResetMessage('Please enter the 6-character verification code', 'error', 'reset-message-2');
+    return;
+  }
+  
+  try {
+    submitBtn.textContent = 'Verifying...';
+    submitBtn.disabled = true;
+    clearResetMessages();
+    
+    console.log('🔒 Verifying code for:', currentResetEmail);
+    
+    const response = await fetch('/api/password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'verify_code',
+        email: currentResetEmail,
+        code: code.toUpperCase()
+      })
+    });
+
+    const result = await response.json();
+    console.log('🔒 Code verification response:', result);
+    
+    if (response.ok && result.success) {
+      showResetMessage('Verification successful! Redirecting to dashboard...', 'success', 'reset-message-2');
+      
+      // Simulate successful authentication and redirect to dashboard
+      setTimeout(() => {
+        console.log('🚀 Redirecting to dashboard with reset auth token');
+        const q = new URLSearchParams({
+          token: result.authToken,
+          email: result.email,
+          tier: 'trial', // Default tier for reset users
+          name: result.email.split('@')[0],
+          reset_auth: 'true'
+        });
+        window.location.href = `https://app.postdoserx.com/#${q.toString()}`;
+      }, 1000);
+      
+    } else {
+      const errorMsg = result.error || 'Invalid verification code';
+      if (result.attemptsRemaining !== undefined) {
+        showResetMessage(`${errorMsg}. ${result.attemptsRemaining} attempts remaining.`, 'error', 'reset-message-2');
+      } else {
+        showResetMessage(errorMsg, 'error', 'reset-message-2');
+      }
+    }
+    
+  } catch (error) {
+    console.error('🔒 Code verification failed:', error);
+    showResetMessage('Verification failed. Please try again.', 'error', 'reset-message-2');
+  } finally {
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+  }
+}
+
+async function resendVerificationCode() {
+  console.log('🔒 Resending verification code for:', currentResetEmail);
+  
+  // Simulate clicking the reset button again
+  document.getElementById('reset-email').value = currentResetEmail;
+  await handlePasswordResetRequest({ preventDefault: () => {} });
+}
+
+function showResetMessage(text, type = 'error', containerId = 'reset-message-1') {
+  const container = document.getElementById(containerId);
+  if (container) {
+    container.innerHTML = `<div class="message ${type}" style="margin-bottom:16px;">${text}</div>`;
+  }
+}
+
+function clearResetMessages() {
+  document.getElementById('reset-message-1').innerHTML = '';
+  document.getElementById('reset-message-2').innerHTML = '';
+}
+
+// Auto-format verification code input
+document.addEventListener('DOMContentLoaded', function() {
+  const codeInput = document.getElementById('verification-code');
+  if (codeInput) {
+    codeInput.addEventListener('input', function(e) {
+      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
+  }
 });
 </script>
 

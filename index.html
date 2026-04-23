@@ -2155,6 +2155,10 @@ function startStripeCheckout(priceId, buttonElement) {
         <div class="oauth-notice" style="background:var(--teal-light);border:1px solid var(--teal);border-radius:8px;padding:12px;text-align:center;font-size:12px;color:var(--teal-dark)">
           <strong>✅ Quick Sign-Up:</strong> Use Google for instant account creation
         </div>
+        
+        <div style="text-align:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:14px;color:var(--text-sec)">
+          Already have an account? <a href="/login.html" style="color:var(--magenta);text-decoration:none;font-weight:500">Sign in here</a> or <a href="/login.html#forgot" style="color:var(--slate);text-decoration:none">reset your password</a>
+        </div>
       </div>
     </div>
   </div>
@@ -2576,7 +2580,7 @@ function openSignupModal(planName = null, priceId = null) {
   }
 }
 
-// Check if user should be sent to login (same rules as POST /api/auth/login — DB + GHL)
+// Check if user should be sent to login (server: DB row OR GHL postdoserx — see /api/auth/check-account)
 async function checkExistingUser(email) {
   const trimmed = (email || '').trim();
   if (!trimmed) {
@@ -2590,11 +2594,11 @@ async function checkExistingUser(email) {
     });
     if (!response.ok) {
       console.error('❌ check-account HTTP', response.status);
-      return { exists: false };
+      return { exists: false, verifyFailed: true, httpStatus: response.status };
     }
     const json = await response.json();
     if (!json.success || !json.data) {
-      return { exists: false };
+      return { exists: false, verifyFailed: true };
     }
     const { exists, tier } = json.data;
     console.log('🔍 check-account:', { email: trimmed, exists, tier });
@@ -2606,7 +2610,7 @@ async function checkExistingUser(email) {
     };
   } catch (error) {
     console.error('❌ Error checking existing user:', error);
-    return { exists: false };
+    return { exists: false, verifyFailed: true };
   }
 }
 
@@ -3085,6 +3089,14 @@ document.getElementById('email-check-form').addEventListener('submit', async fun
     
     const userCheck = await checkExistingUser(email);
     
+    if (userCheck.verifyFailed) {
+      showEmailCheckMessage(
+        'We could not reach the account check service. If you already have an account, go to login.html to sign in with Google. You can also try again in a moment.',
+        'error'
+      );
+      return;
+    }
+    
     if (userCheck.exists) {
       // Existing user found
       console.log('✅ Existing user found:', userCheck.contact);
@@ -3157,6 +3169,14 @@ document.getElementById('quick-signup-form').addEventListener('submit', async fu
     showSignupMessage('Checking your account status...', 'info');
     
     const userCheck = await checkExistingUser(email);
+    
+    if (userCheck.verifyFailed) {
+      showSignupMessage(
+        'We could not verify that email. If you already have an account, open login.html and use Google. Otherwise try again shortly.',
+        'error'
+      );
+      return;
+    }
     
     if (userCheck.exists) {
       // User already exists - block signup and redirect appropriately
